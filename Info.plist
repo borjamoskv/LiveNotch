@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleExecutable</key>
+    <string>LiveNotch</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.borjamoskv.livenotch</string>
+    <key>CFBundleName</key>
+    <string>Live Notch</string>
+    <key>CFBundleDisplayName</key>
+    <string>Live Notch</string>
+    <key>CFBundleShortVersionString</key>
+    <string>2.0</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>14.0</string>
+    <key>LSUIElement</key>
+    <true/>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>NSCameraUsageDescription</key>
+    <string>Live Notch uses the camera for the Mirror feature.</string>
+    <key>NSCalendarsUsageDescription</key>
+    <string>Live Notch shows your next event in the notch.</string>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>Live Notch controls music playback via Spotify and Music.</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
+    <key>NSSupportsAutomaticTermination</key>
+    <true/>
+    <key>NSSupportsSuddenTermination</key>
+    <false/>
+</dict>
+</plist>
