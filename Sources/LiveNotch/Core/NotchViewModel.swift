@@ -67,6 +67,8 @@ class NotchViewModel: ObservableObject {
     @Published var isNotchHidden = false // Zen Mode: Hide notch completely
     @Published var isGodModeVisible = false // 🎛️ Geometry Controls
     @Published var isBlueYLM = false       // 🔵 Blue YInMn Theme
+    @Published var isClawBotVisible = false // 🐾 ClawBot AI Panel
+    @Published var isEcosystemHubVisible = false // 🍎 Ecosystem Hub (AirPods/Watch)
     @Published var isCompactMode = false // Safety Mode: Shrink wings to avoid menu icons
     @Published var droppedFiles: [URL] = []
     
@@ -272,7 +274,7 @@ class NotchViewModel: ObservableObject {
     
     // ── Gesture → AI Notifications ──
     private func setupGestureNotifications() {
-        NotificationCenter.default.addObserver(forName: .gestureToggleAI, object: nil, queue: .main) { [weak self] _ in
+        NotificationCenter.default.addObserver(forName: .gestureToggleAI, object: nil, queue: OperationQueue.main) { [weak self] _ in
             Task { @MainActor in
                 guard let self = self else { return }
                 withAnimation(DS.Anim.springStd) {
@@ -285,7 +287,7 @@ class NotchViewModel: ObservableObject {
             }
         }
         
-        NotificationCenter.default.addObserver(forName: .gestureClipboardAI, object: nil, queue: .main) { [weak self] notif in
+        NotificationCenter.default.addObserver(forName: .gestureClipboardAI, object: nil, queue: OperationQueue.main) { [weak self] notif in
             let text = notif.object as? String
             Task { @MainActor in
                 guard let self = self, let text = text else { return }
@@ -297,7 +299,7 @@ class NotchViewModel: ObservableObject {
             }
         }
         
-        NotificationCenter.default.addObserver(forName: .gestureSummonBrain, object: nil, queue: .main) { [weak self] _ in
+        NotificationCenter.default.addObserver(forName: .gestureSummonBrain, object: nil, queue: OperationQueue.main) { [weak self] _ in
             Task { @MainActor in
                 guard let self = self else { return }
                 withAnimation(DS.Anim.springStd) {
@@ -308,7 +310,7 @@ class NotchViewModel: ObservableObject {
             }
         }
         
-        NotificationCenter.default.addObserver(forName: .gestureToggleNotch, object: nil, queue: .main) { [weak self] _ in
+        NotificationCenter.default.addObserver(forName: .gestureToggleNotch, object: nil, queue: OperationQueue.main) { [weak self] _ in
             Task { @MainActor in
                 guard let self = self else { return }
                 withAnimation(DS.Anim.springNotify) {
@@ -326,7 +328,7 @@ class NotchViewModel: ObservableObject {
     func startNotificationMonitor() {
         NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didActivateApplicationNotification,
-            object: nil, queue: .main
+            object: nil, queue: OperationQueue.main
         ) { [weak self] notification in
             let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
             Task { @MainActor in
@@ -560,6 +562,8 @@ class NotchViewModel: ObservableObject {
         isAppLauncherVisible = false
         isMirrorActive = false
         isScriptDropVisible = false
+        isClawBotVisible = false
+        isEcosystemHubVisible = false
         // Reset mode if needed?
         // mode = .expanded 
     }

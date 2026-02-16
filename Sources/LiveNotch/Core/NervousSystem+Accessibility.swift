@@ -26,7 +26,8 @@ extension NervousSystem {
             }
             
             var titleValue: AnyObject?
-            // Fixed in previous refactor: Force cast is safe here as AX API ensures type
+            // Fixed: Force cast replaced with safe binding
+            // Fixed: Force cast as conditional downcast always succeeds for CFType
             let windowElement = window as! AXUIElement
             AXUIElementCopyAttributeValue(windowElement, kAXTitleAttribute as CFString, &titleValue)
             

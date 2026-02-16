@@ -15,7 +15,7 @@ struct LauncherPanelView: View {
     ]
     
     // ── Pre-defined Apps (MVP) ──
-    // TODO: Make this dynamic/user-configurable in Phase 2
+    // MARK: - [Deferred] Dynamic/user-configurable app list (Phase 2)
     let apps: [LaunchApp] = [
         LaunchApp(name: "Finder", bundleId: "com.apple.finder", systemImage: "magnifyingglass"),
         LaunchApp(name: "Safari", bundleId: "com.apple.Safari", systemImage: "safari"),
@@ -51,7 +51,7 @@ struct LauncherPanelView: View {
                 
                 // Close Button (Standardized)
                 Button(action: {
-                    NotificationCenter.default.post(name: .closePanel, object: nil)
+                    NotificationCenter.default.post(name: Notification.Name.closePanel, object: nil)
                     HapticManager.shared.play(.toggle)
                 }) {
                     Image(systemName: "xmark.circle.fill")
@@ -82,6 +82,7 @@ struct LauncherPanelView: View {
 struct AppIconView: View {
     let app: LaunchApp
     @State private var isHovered = false
+    private let log = NotchLog.make("LauncherPanel")
     
     var body: some View {
         Button(action: {
@@ -138,12 +139,12 @@ struct AppIconView: View {
             let config = NSWorkspace.OpenConfiguration()
             config.activates = true
             NSWorkspace.shared.openApplication(at: url, configuration: config) { _, _ in
-                 DispatchQueue.main.async {
-                     NotificationCenter.default.post(name: .closePanel, object: nil)
+                DispatchQueue.main.async {
+                     NotificationCenter.default.post(name: Notification.Name.closePanel, object: nil)
                 }
             }
         } else {
-            NSLog("⚠️ LauncherPanel: Could not find app with bundleId: %@", bundleId)
+            log.warning("Could not find app with bundleId: \(bundleId)")
         }
     }
 }

@@ -8,6 +8,8 @@ import SwiftUI
 class CameraService: NSObject, ObservableObject {
     @Published var session = AVCaptureSession()
     @Published var isAuthorized = false
+    private let log = NotchLog.make("CameraService")
+    
     
     private let sessionQueue = DispatchQueue(label: "com.livenotch.camera")
     
@@ -23,7 +25,7 @@ class CameraService: NSObject, ObservableObject {
             setupCamera()
         case .notDetermined:
             // CAMERA PERMISSION DISABLED AS REQUESTED
-            NSLog("📷 CameraService: Access disabled (Simulation Mode)")
+            log.info("Access disabled (Simulation Mode)")
             self.isAuthorized = false
         default:
             self.isAuthorized = false
@@ -36,7 +38,7 @@ class CameraService: NSObject, ObservableObject {
             
             guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .front) ??
                                AVCaptureDevice.default(for: .video) else {
-                NSLog("📷 CameraService: No camera found")
+                self.log.warning("No camera found")
                 self.session.commitConfiguration()
                 return
             }
@@ -47,7 +49,7 @@ class CameraService: NSObject, ObservableObject {
                     self.session.addInput(input)
                 }
             } catch {
-                NSLog("📷 CameraService: Error setting up camera input — %@", error.localizedDescription)
+                self.log.error("Error setting up camera input — \(error.localizedDescription)")
             }
             
             self.session.commitConfiguration()

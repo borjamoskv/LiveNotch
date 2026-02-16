@@ -23,6 +23,8 @@ import Combine
 @MainActor
 final class FileEater: ObservableObject {
     static let shared = FileEater()
+    private let log = NotchLog.make("FileEater")
+    
     
     // ── State ──
     @Published var storedFiles: [URL] = []
@@ -64,7 +66,7 @@ final class FileEater: ObservableObject {
         lastEatenFileName = toEat.last?.lastPathComponent
         HapticManager.shared.play(.drop)
         
-        NSLog("👾 FileEater: Ate \(toEat.count) files (total: \(storedFiles.count))")
+        log.info("Ate \(toEat.count) files (total: \(storedFiles.count))")
         
         // End eating animation after brief delay
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
@@ -81,7 +83,7 @@ final class FileEater: ObservableObject {
         let urls = storedFiles
         storedFiles.removeAll()
         HapticManager.shared.play(.subtle)
-        NSLog("👾 FileEater: Spat \(urls.count) files")
+        log.info("Spat \(urls.count) files")
         return urls
     }
     
@@ -98,7 +100,7 @@ final class FileEater: ObservableObject {
         storedFiles.removeAll()
         lastEatenFileName = nil
         HapticManager.shared.play(.toggle)
-        NSLog("👾 FileEater: Purged all files")
+        log.info("Purged all files")
     }
     
     // ── Bookmark restoration ──

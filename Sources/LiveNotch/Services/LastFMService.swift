@@ -10,6 +10,8 @@ import AppKit
 import Foundation
 import SwiftUI
 
+private let log = NotchLog.make("LastFM")
+
 /// Service for fetching album artwork from Last.fm when native sources fail
 @MainActor
 class LastFMService: ObservableObject {
@@ -77,7 +79,7 @@ class LastFMService: ObservableObject {
                 }
             }
         } catch {
-            print("[LastFMService] Error fetching artwork: \(error.localizedDescription)")
+            log.error("Error fetching artwork: \(error.localizedDescription)")
         }
         
         return nil

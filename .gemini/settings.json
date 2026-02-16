@@ -1,0 +1,10 @@
+{
+  "project": {
+    "name": "notch-live",
+    "description": "The Dynamic Island for macOS — ALCOVE Design System & Swarm Intelligence",
+    "language": "swift",
+    "framework": "SwiftUI",
+    "platform": "macOS 14+",
+    "buildSystem": "Swift Package Manager"
+  }
+}

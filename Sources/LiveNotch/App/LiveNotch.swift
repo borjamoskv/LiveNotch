@@ -21,6 +21,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var notchWindow: NSWindow?
     var statusItem: NSStatusItem?
     let viewModel = NotchViewModel()
+    private let log = NotchLog.make("AppDelegate")
+    
     
     var hotkeyMonitor: Any?
     private var sleepObserver: Any?
@@ -120,7 +122,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         
-        NSLog("🕳️⚡ NOTCH//WINGS ready — borderless overlay on physical notch")
+        log.info("🕳️⚡ NOTCH//WINGS ready — borderless overlay on physical notch")
     }
     
     // ════════════════════════════════════════
@@ -163,7 +165,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         // Safety: abort if geometry is invalid (screen disconnected mid-transition)
         guard notchWidth > 0, sf.width > 0, sf.height > 0 else {
-            NSLog("⚠️ Invalid screen geometry — skipping window creation")
+            log.warning("⚠️ Invalid screen geometry — skipping window creation")
             return
         }
         
@@ -238,6 +240,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         // ── SwiftUI content with notch geometry ──
         let view = NotchView(viewModel: viewModel, geometry: geo)
+            .environmentObject(UserProfileManager.shared)
         // PassthroughHostingView: clicks on transparent Spacer area fall through
         let hostingView = PassthroughHostingView(rootView: view)
         
@@ -405,6 +408,27 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     self.viewModel.activateColorPicker()
                 }
             }
+            // ⌘⇧A — Cycle ANC Mode (Off → ANC → Transparency → Adaptive)
+            if event.modifierFlags.contains([.command, .shift]) && event.keyCode == 0 { // 'A' key code is 0
+                DispatchQueue.main.async {
+                    HeadphoneController.shared.cycleANC()
+                    HapticManager.shared.play(.toggle)
+                }
+            }
+            // ⌘⇧S — Toggle Spatial Audio
+            if event.modifierFlags.contains([.command, .shift]) && event.keyCode == 1 { // 'S' key code is 1
+                DispatchQueue.main.async {
+                    HeadphoneController.shared.toggleSpatialAudio()
+                    HapticManager.shared.play(.toggle)
+                }
+            }
+            // ⌘⇧Q — Toggle Conversation Boost
+            if event.modifierFlags.contains([.command, .shift]) && event.keyCode == 12 { // 'Q' key code is 12
+                DispatchQueue.main.async {
+                    HeadphoneController.shared.toggleConversationBoost()
+                    HapticManager.shared.play(.toggle)
+                }
+            }
             // ⌥Space — Command Palette
             if event.modifierFlags.contains(.option) && event.keyCode == 49 {
                 DispatchQueue.main.async {
@@ -423,7 +447,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     
     /// Eye-tracking control toggle — stub for future implementation
     @MainActor func toggleEyeControl() {
-        // TODO: Implement eye-tracking control toggle
+        // MARK: [Deferred] Eye-tracking integration (Phase 2)
+        log.info("👀 Eye control toggle request received (Feature Deferred)")
         HapticManager.shared.play(.toggle)
     }
     

@@ -28,301 +28,6 @@ import Combine
 // Over time, the system evolves — better agents rise.
 
 // ═══════════════════════════════════════════════════════════════
-// MARK: - Agent DNA (Template for Micro-Agent Generation)
-// ═══════════════════════════════════════════════════════════════
-
-/// AgentDNA is the genetic blueprint for spawning micro-agents.
-/// Each DNA encodes domain knowledge, keyword affinity, and
-/// response generation templates.
-struct AgentDNA: Identifiable, Codable {
-    let id: UUID
-    let species: String          // e.g., "code.swift.concurrency"
-    let emoji: String
-    let domain: String
-    let keywords: [String]
-    let contextBundles: [String] // App bundle IDs that boost confidence
-    var fitnessScore: Double     // Evolutionary fitness (0.0 - 1.0)
-    var spawnCount: Int          // How many times this DNA has been used
-    var successCount: Int        // How many times response was accepted
-    let generation: Int          // Evolutionary generation
-
-    /// Mutation rate based on fitness — low fitness = high mutation
-    var mutationRate: Double {
-        return max(0.05, 1.0 - fitnessScore)
-    }
-
-    /// Survival probability — higher fitness = more likely to survive
-    var survivalProbability: Double {
-        return fitnessScore * 0.7 + (Double(successCount) / max(1.0, Double(spawnCount))) * 0.3
-    }
-}
-
-// ═══════════════════════════════════════════════════════════════
-// MARK: - Micro-Agent (Disposable Intelligence Unit)
-// ═══════════════════════════════════════════════════════════════
-
-/// A lightweight, single-use agent spawned from DNA.
-/// Lives for one query cycle, then dies.
-struct MicroAgent {
-    let id: UUID = UUID()
-    let dna: AgentDNA
-    let spawnedAt: Date = Date()
-    var response: String = ""
-    var confidence: Double = 0.0
-    var processingTimeMs: Double = 0
-
-    /// Smart multi-signal confidence scoring
-    mutating func evaluate(query: String, context: SensorFusion) {
-        let lowered = query.lowercased()
-        let words = lowered.components(separatedBy: .whitespacesAndNewlines)
-        var score = 0.0
-
-        // ── Signal 1: Keyword matching (weighted by specificity) ──
-        let matches = dna.keywords.filter { lowered.contains($0) }
-        score += Double(matches.count) * 0.15
-
-        // ── Signal 2: N-gram matching (2-word phrases score higher) ──
-        if words.count >= 2 {
-            for i in 0..<(words.count - 1) {
-                let bigram = "\(words[i]) \(words[i+1])"
-                let bigramMatches = dna.keywords.filter { bigram.contains($0) || $0.contains(bigram) }
-                score += Double(bigramMatches.count) * 0.2  // Bigrams are worth more
-            }
-        }
-
-        // ── Signal 3: App context boost ──
-        if dna.contextBundles.contains(context.activeAppBundle) {
-            score += 0.3
-        }
-
-        // ── Signal 4: DNA fitness modifier (proven agents get edge) ──
-        score += dna.fitnessScore * 0.15
-
-        // ── Signal 5: Intent alignment (from ContextMesh) ──
-        let mesh = ContextMesh.shared
-        switch mesh.intentSignal {
-        case .debugging:
-            if dna.keywords.contains("debug") || dna.keywords.contains("error") || dna.keywords.contains("fix") { score += 0.25 }
-        case .coding:
-            if dna.species.hasPrefix("code.") { score += 0.2 }
-        case .creating:
-            if dna.species.hasPrefix("creative.") { score += 0.2 }
-        case .shipping:
-            if dna.species.hasPrefix("infra.") { score += 0.2 }
-        case .learning:
-            if dna.species.hasPrefix("research.") { score += 0.15 }
-        case .resting:
-            if dna.species.hasPrefix("well.") { score += 0.3 }
-        case .exploring:
-            break
-        }
-
-        // ── Signal 6: Session momentum (recent winning species get boost) ──
-        if mesh.recentWinners.contains(dna.species) {
-            score += 0.1
-        }
-        // Language momentum: if user has been coding in Swift, boost Swift agents
-        for lang in mesh.detectedLanguages {
-            if dna.species.lowercased().contains(lang.lowercased()) {
-                score += 0.15
-            }
-        }
-
-        // ── Signal 7: Time-of-day affinity ──
-        if dna.domain.contains("Wellbeing") && (context.timeOfDay == .night || context.timeOfDay == .lateNight) {
-            score += 0.25
-        }
-        if dna.domain.contains("Creative") && context.isPlayingMusic {
-            score += 0.15
-        }
-
-        // ── Signal 8: Clipboard code analysis ──
-        if let clip = context.clipboardContent {
-            let clipLower = clip.lowercased()
-            let clipMatches = dna.keywords.filter { clipLower.contains($0) }.count
-            score += Double(clipMatches) * 0.1
-
-            // Detect language from clipboard code patterns
-            if dna.species.contains("swift") && (clipLower.contains("func ") || clipLower.contains("@State") || clipLower.contains("var body")) {
-                score += 0.2
-            }
-            if dna.species.contains("python") && (clipLower.contains("def ") || clipLower.contains("import ") && clipLower.contains("from ")) {
-                score += 0.2
-            }
-            if dna.species.contains("javascript") && (clipLower.contains("const ") || clipLower.contains("=>") || clipLower.contains("require(")) {
-                score += 0.2
-            }
-            if dna.species.contains("rust") && (clipLower.contains("fn ") || clipLower.contains("let mut") || clipLower.contains("impl ")) {
-                score += 0.2
-            }
-        }
-
-        // ── Signal 9: Query complexity scaling ──
-        // Longer, more specific queries should prefer specialized agents
-        if words.count > 8 && dna.species.contains(".") {
-            score += 0.05  // Small boost for sub-specialists on complex queries
-        }
-
-        // ── Signal 10: UserMode domain bias ──
-        // Agents matching the current mode's domains get a real boost
-        let modeBias = mesh.modeDomainBias
-        if !modeBias.isEmpty {
-            let domainHits = modeBias.filter { dna.domain.contains($0) || dna.species.contains($0.lowercased()) }.count
-            score += Double(domainHits) * 0.2
-        }
-
-        self.confidence = min(1.0, score)
-    }
-}
-
-// ═══════════════════════════════════════════════════════════════
-// MARK: - Swarm Consensus Protocol
-// ═══════════════════════════════════════════════════════════════
-
-/// Byzantine fault-tolerant consensus for agent responses.
-/// Uses weighted voting to determine the best response.
-enum ConsensusProtocol {
-    /// Simple majority — best single response wins
-    case majority
-    /// Weighted synthesis — top N responses are merged
-    case synthesis(topN: Int)
-    /// Tournament — agents compete head-to-head
-    case tournament
-    /// Unanimous — all agents must agree (high confidence required)
-    case unanimous
-
-    /// Select the best response(s) from the swarm
-    static func resolve(
-        agents: [MicroAgent],
-        protocol proto: ConsensusProtocol = .synthesis(topN: 3)
-    ) -> SwarmConsensusResult {
-        let sorted = agents.sorted { $0.confidence > $1.confidence }
-        let totalConfidence = sorted.reduce(0.0) { $0 + $1.confidence }
-
-        switch proto {
-        case .majority:
-            guard let winner = sorted.first else {
-                return SwarmConsensusResult.empty
-            }
-            return SwarmConsensusResult(
-                finalResponse: winner.response,
-                winningAgent: winner.dna.species,
-                winningEmoji: winner.dna.emoji,
-                participantCount: agents.count,
-                consensusStrength: winner.confidence,
-                protocol: "Majority",
-                breakdown: sorted.prefix(5).map { agent in
-                    SwarmConsensusResult.AgentVote(
-                        species: agent.dna.species,
-                        emoji: agent.dna.emoji,
-                        confidence: agent.confidence,
-                        processingTimeMs: agent.processingTimeMs
-                    )
-                }
-            )
-
-        case .synthesis(let topN):
-            let experts = Array(sorted.prefix(topN).filter { $0.confidence > 0.2 })
-            guard !experts.isEmpty else { return SwarmConsensusResult.empty }
-
-            if experts.count == 1 {
-                return SwarmConsensusResult(
-                    finalResponse: experts[0].response,
-                    winningAgent: experts[0].dna.species,
-                    winningEmoji: experts[0].dna.emoji,
-                    participantCount: agents.count,
-                    consensusStrength: experts[0].confidence,
-                    protocol: "Single Expert",
-                    breakdown: sorted.prefix(5).map { agent in
-                        SwarmConsensusResult.AgentVote(
-                            species: agent.dna.species,
-                            emoji: agent.dna.emoji,
-                            confidence: agent.confidence,
-                            processingTimeMs: agent.processingTimeMs
-                        )
-                    }
-                )
-            }
-
-            // Build collaborative synthesis
-            let hiveLabel = experts.map { "\($0.dna.emoji) \($0.dna.species)" }.joined(separator: " × ")
-            var synthesis = "🐝 **Hive Mind — \(agents.count) agents spawned, \(experts.count) converged**\n"
-            synthesis += "Consensus: \(hiveLabel)\n\n"
-            synthesis += "═══════════════════════════════════════\n\n"
-
-            for expert in experts {
-                let weight = Int((expert.confidence / totalConfidence) * 100)
-                synthesis += "### \(expert.dna.emoji) \(expert.dna.species) (\(weight)% weight)\n"
-                synthesis += "\(expert.response)\n\n"
-                synthesis += "───\n\n"
-            }
-
-            return SwarmConsensusResult(
-                finalResponse: synthesis,
-                winningAgent: "HiveMind",
-                winningEmoji: "🐝",
-                participantCount: agents.count,
-                consensusStrength: experts.first?.confidence ?? 0,
-                protocol: "Synthesis(\(topN))",
-                breakdown: sorted.prefix(10).map { agent in
-                    SwarmConsensusResult.AgentVote(
-                        species: agent.dna.species,
-                        emoji: agent.dna.emoji,
-                        confidence: agent.confidence,
-                        processingTimeMs: agent.processingTimeMs
-                    )
-                }
-            )
-
-        case .tournament:
-            // Round-robin tournament: higher confidence always wins
-            guard sorted.count >= 2 else {
-                return ConsensusProtocol.resolve(agents: agents, protocol: .majority)
-            }
-            // Champion is simply the highest after all rounds
-            return ConsensusProtocol.resolve(agents: agents, protocol: .majority)
-
-        case .unanimous:
-            let threshold = 0.6
-            let agreeing = sorted.filter { $0.confidence > threshold }
-            if agreeing.count == sorted.count && !sorted.isEmpty {
-                return ConsensusProtocol.resolve(agents: agents, protocol: .majority)
-            } else {
-                // No unanimous agreement — fall back to synthesis
-                return ConsensusProtocol.resolve(agents: agents, protocol: .synthesis(topN: 3))
-            }
-        }
-    }
-}
-
-struct SwarmConsensusResult {
-    let finalResponse: String
-    let winningAgent: String
-    let winningEmoji: String
-    let participantCount: Int
-    let consensusStrength: Double
-    let `protocol`: String
-    let breakdown: [AgentVote]
-
-    struct AgentVote {
-        let species: String
-        let emoji: String
-        let confidence: Double
-        let processingTimeMs: Double
-    }
-
-    static let empty = SwarmConsensusResult(
-        finalResponse: "The swarm could not reach consensus. Try rephrasing your query.",
-        winningAgent: "None",
-        winningEmoji: "❓",
-        participantCount: 0,
-        consensusStrength: 0,
-        protocol: "None",
-        breakdown: []
-    )
-}
-
-// ═══════════════════════════════════════════════════════════════
 // MARK: - Fitness Tracker (Evolutionary Learning)
 // ═══════════════════════════════════════════════════════════════
 
@@ -330,6 +35,8 @@ struct SwarmConsensusResult {
 /// Better-performing agent DNAs rise, poor ones are culled.
 final class FitnessTracker: ObservableObject {
     static let shared = FitnessTracker()
+    private let log = NotchLog.make("FitnessTracker")
+    
 
     @Published var generation: Int = 0
     @Published var totalSpawns: Int = 0
@@ -370,7 +77,7 @@ final class FitnessTracker: ObservableObject {
             return Double(entry.wins) / Double(entry.total) > 0.1
         }
         updateTopPerformers()
-        NSLog("🧬 Swarm evolved to generation \(generation). Active species: \(dnaFitness.count)")
+        log.info("🧬 Swarm evolved to generation \(generation). Active species: \(dnaFitness.count)")
     }
 
     private func updateTopPerformers() {
@@ -388,6 +95,8 @@ final class FitnessTracker: ObservableObject {
 /// Live metrics about the swarm's health and activity.
 final class SwarmTelemetry: ObservableObject {
     static let shared = SwarmTelemetry()
+    private let log = NotchLog.make("SwarmTelemetry")
+    
 
     @Published var activeAgentCount: Int = 0
     @Published var totalDNATemplates: Int = 0
@@ -587,180 +296,6 @@ final class ContextMesh: ObservableObject {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// MARK: - 🏭 DNA Registry (Agent Genome Database)
-// ═══════════════════════════════════════════════════════════════
-
-/// The master catalogue of all agent DNA templates.
-/// From these templates, thousands of micro-agents are spawned.
-enum DNARegistry {
-    // ── Code Domain (100+ sub-specialties) ──
-    static let codeGenomes: [AgentDNA] = {
-        let base = ["code", "program", "develop", "software", "engineer"]
-        let languages: [(String, String, [String])] = [
-            ("Swift", "🦅", ["swift", "swiftui", "uikit", "appkit", "xcode", "combine", "async", "await", "actor", "@State", "@Published", "observable", "spm", "cocoapods", "xctest"]),
-            ("Python", "🐍", ["python", "pip", "django", "flask", "fastapi", "numpy", "pandas", "torch", "tensorflow", "jupyter", "virtualenv", "pytest", "decorator", "yield", "asyncio"]),
-            ("JavaScript", "⚡", ["javascript", "js", "node", "npm", "react", "vue", "angular", "next.js", "express", "webpack", "vite", "typescript", "deno", "bun", "jest"]),
-            ("Rust", "🦀", ["rust", "cargo", "ownership", "borrow", "lifetime", "unsafe", "trait", "impl", "tokio", "wasm", "serde", "actix"]),
-            ("Go", "🐹", ["golang", "go", "goroutine", "channel", "defer", "interface", "gin", "fiber"]),
-            ("SQL", "🗃️", ["sql", "select", "join", "index", "query", "postgres", "mysql", "sqlite", "migration", "schema", "orm", "prisma", "drizzle"]),
-            ("Shell", "💻", ["bash", "zsh", "shell", "terminal", "cli", "grep", "awk", "sed", "pipe", "chmod", "cron"]),
-            ("HTML/CSS", "🎨", ["html", "css", "flexbox", "grid", "responsive", "media query", "sass", "tailwind", "animation", "transition"]),
-            ("Solidity", "⛓️", ["solidity", "contract", "ethereum", "web3", "erc20", "erc721", "hardhat", "foundry", "abi"]),
-            ("C++", "⚙️", ["cpp", "c++", "pointer", "template", "stl", "cmake", "makefile", "header"]),
-            ("Kotlin", "🟣", ["kotlin", "android", "jetpack", "compose", "coroutine", "flow", "ktor"]),
-            ("PHP", "🐘", ["php", "laravel", "composer", "artisan", "blade", "eloquent", "symfony"]),
-            ("Ruby", "💎", ["ruby", "rails", "gem", "bundler", "rake", "rspec", "sinatra"]),
-            ("Dart", "🎯", ["dart", "flutter", "widget", "pubspec", "riverpod"]),
-        ]
-
-        var genomes: [AgentDNA] = []
-        let bundles = ["com.apple.dt.Xcode", "com.microsoft.VSCode", "com.todesktop.230510fqmkbjh6g",
-                       "dev.warp.warp-stable", "com.apple.Terminal", "com.googlecode.iterm2"]
-
-        for (lang, emoji, keywords) in languages {
-            // Base language agent
-            genomes.append(AgentDNA(
-                id: UUID(), species: "code.\(lang.lowercased())", emoji: emoji,
-                domain: "\(lang) Development", keywords: base + keywords,
-                contextBundles: bundles, fitnessScore: 0.5, spawnCount: 0,
-                successCount: 0, generation: 0
-            ))
-            // Sub-specialties
-            let specialties = ["debug", "optimize", "refactor", "test", "architecture", "patterns"]
-            for spec in specialties {
-                genomes.append(AgentDNA(
-                    id: UUID(), species: "code.\(lang.lowercased()).\(spec)",
-                    emoji: emoji, domain: "\(lang) \(spec.capitalized)",
-                    keywords: keywords + [spec, "\(spec)ing"],
-                    contextBundles: bundles, fitnessScore: 0.5,
-                    spawnCount: 0, successCount: 0, generation: 0
-                ))
-            }
-        }
-        return genomes
-    }()
-
-    // ── Creative Domain ──
-    static let creativeGenomes: [AgentDNA] = {
-        let domains: [(String, String, String, [String], [String])] = [
-            ("creative.midjourney", "🖼", "Midjourney Prompts", ["midjourney", "imagine", "prompt", "render", "concept art", "--ar", "--v 6", "--style raw", "composition", "lighting"], ["com.hnc.Discord"]),
-            ("creative.suno", "🎵", "Music Generation", ["suno", "udio", "song", "lyrics", "melody", "beat", "bpm", "genre", "tempo", "chorus", "verse"], []),
-            ("creative.runway", "📹", "Video Generation", ["runway", "gen-3", "video", "motion", "animate", "camera movement", "dolly", "pan", "edit"], []),
-            ("creative.dalle", "🎨", "Image Generation", ["dall-e", "dalle", "image", "generate", "visual", "illustration", "concept", "style transfer"], []),
-            ("creative.color", "🌈", "Color Theory", ["color", "palette", "hex", "rgb", "hsl", "gradient", "contrast", "complementary", "analogous", "triadic"], []),
-            ("creative.typography", "🔤", "Typography", ["font", "typeface", "typography", "serif", "sans-serif", "weight", "line-height", "kerning", "tracking"], []),
-            ("creative.3d", "🧊", "3D Modeling", ["3d", "blender", "three.js", "webgl", "glb", "gltf", "mesh", "texture", "shader", "raytracing"], []),
-            ("creative.audio", "🎧", "Audio Engineering", ["mix", "master", "eq", "compressor", "reverb", "delay", "sidechain", "stereo", "lufs", "frequency"], ["com.ableton.live", "com.apple.logicpro"]),
-            ("creative.motion", "✨", "Motion Design", ["animation", "keyframe", "easing", "spring", "physics", "parallax", "lottie", "rive", "after effects"], []),
-            ("creative.branding", "🏷️", "Brand Identity", ["brand", "identity", "logo", "visual language", "guideline", "mood board", "tone", "voice"], []),
-        ]
-
-        return domains.map { species, emoji, domain, keywords, bundles in
-            AgentDNA(id: UUID(), species: species, emoji: emoji, domain: domain,
-                     keywords: keywords, contextBundles: bundles, fitnessScore: 0.5,
-                     spawnCount: 0, successCount: 0, generation: 0)
-        }
-    }()
-
-    // ── Infrastructure Domain ──
-    static let infraGenomes: [AgentDNA] = {
-        let domains: [(String, String, String, [String], [String])] = [
-            ("infra.docker", "🐳", "Docker & Containers", ["docker", "container", "dockerfile", "compose", "image", "volume", "network", "registry"], ["com.apple.Terminal"]),
-            ("infra.kubernetes", "☸️", "Kubernetes", ["kubernetes", "k8s", "pod", "deployment", "service", "ingress", "helm", "kubectl", "minikube"], []),
-            ("infra.ci", "🔄", "CI/CD Pipelines", ["ci", "cd", "pipeline", "github actions", "jenkins", "circleci", "gitlab ci", "workflow", "artifact"], []),
-            ("infra.cloud.aws", "☁️", "AWS", ["aws", "s3", "ec2", "lambda", "dynamo", "cloudfront", "iam", "vpc", "ecs", "fargate", "cloudwatch"], []),
-            ("infra.cloud.gcp", "🌩️", "Google Cloud", ["gcp", "firebase", "cloud run", "cloud functions", "bigquery", "pubsub", "spanner", "gke"], []),
-            ("infra.cloud.azure", "🔵", "Azure", ["azure", "blob", "cosmos", "app service", "functions", "devops", "active directory"], []),
-            ("infra.terraform", "🏗️", "Infrastructure as Code", ["terraform", "iac", "pulumi", "cloudformation", "ansible", "state", "plan", "apply", "module"], []),
-            ("infra.monitoring", "📊", "Monitoring & Observability", ["monitoring", "prometheus", "grafana", "datadog", "new relic", "alert", "metric", "trace", "log", "sentry"], []),
-            ("infra.networking", "📡", "Networking", ["network", "dns", "cdn", "load balancer", "proxy", "nginx", "reverse proxy", "ssl", "tls", "firewall", "vpn"], []),
-            ("infra.security", "🔐", "Security Engineering", ["security", "audit", "penetration", "owasp", "cve", "vulnerability", "encryption", "zero trust", "rbac"], []),
-        ]
-
-        return domains.map { species, emoji, domain, keywords, bundles in
-            AgentDNA(id: UUID(), species: species, emoji: emoji, domain: domain,
-                     keywords: keywords, contextBundles: bundles, fitnessScore: 0.5,
-                     spawnCount: 0, successCount: 0, generation: 0)
-        }
-    }()
-
-    // ── Research & Analysis Domain ──
-    static let researchGenomes: [AgentDNA] = {
-        let domains: [(String, String, String, [String])] = [
-            ("research.data", "📊", "Data Science", ["data", "dataset", "analysis", "statistics", "regression", "classification", "clustering", "pca", "feature"]),
-            ("research.ml", "🤖", "Machine Learning", ["ml", "model", "train", "inference", "neural", "transformer", "llm", "fine-tune", "rlhf", "embedding"]),
-            ("research.nlp", "💬", "NLP", ["nlp", "natural language", "tokenize", "sentiment", "ner", "bert", "gpt", "prompt engineering", "rag"]),
-            ("research.cv", "👁️", "Computer Vision", ["vision", "image", "detection", "segmentation", "yolo", "cnn", "resnet", "diffusion"]),
-            ("research.math", "🔢", "Mathematics", ["math", "equation", "integral", "derivative", "matrix", "probability", "bayesian", "statistics"]),
-            ("research.crypto", "🔐", "Cryptography", ["crypto", "hash", "encrypt", "decrypt", "aes", "rsa", "ed25519", "zero knowledge", "zkp"]),
-        ]
-
-        return domains.map { species, emoji, domain, keywords in
-            AgentDNA(id: UUID(), species: species, emoji: emoji, domain: domain,
-                     keywords: keywords, contextBundles: [], fitnessScore: 0.5,
-                     spawnCount: 0, successCount: 0, generation: 0)
-        }
-    }()
-
-    // ── Business & Communication Domain ──
-    static let businessGenomes: [AgentDNA] = {
-        let domains: [(String, String, String, [String])] = [
-            ("biz.writing", "✍️", "Technical Writing", ["write", "document", "readme", "article", "blog", "copy", "headline", "pitch", "newsletter"]),
-            ("biz.marketing", "📢", "Digital Marketing", ["marketing", "seo", "sem", "growth", "funnel", "conversion", "ab test", "analytics", "campaign"]),
-            ("biz.finance", "💰", "Finance & Markets", ["price", "market", "stock", "crypto", "trading", "portfolio", "roi", "revenue", "profit", "valuation"]),
-            ("biz.legal", "⚖️", "Legal & Compliance", ["license", "gdpr", "privacy policy", "terms", "copyright", "patent", "compliance", "regulation"]),
-            ("biz.pm", "📋", "Project Management", ["sprint", "backlog", "kanban", "scrum", "velocity", "standup", "retro", "epic", "story", "task"]),
-            ("biz.product", "🎯", "Product Strategy", ["product", "roadmap", "mvp", "user story", "persona", "market fit", "pivot", "metrics", "okr", "kpi"]),
-        ]
-
-        return domains.map { species, emoji, domain, keywords in
-            AgentDNA(id: UUID(), species: species, emoji: emoji, domain: domain,
-                     keywords: keywords, contextBundles: [], fitnessScore: 0.5,
-                     spawnCount: 0, successCount: 0, generation: 0)
-        }
-    }()
-
-    // ── Wellbeing & Lifestyle Domain ──
-    static let wellbeingGenomes: [AgentDNA] = {
-        let domains: [(String, String, String, [String])] = [
-            ("well.focus", "🧘", "Focus & Flow", ["focus", "concentrate", "pomodoro", "deep work", "flow state", "distraction", "mindful"]),
-            ("well.health", "💚", "Developer Health", ["tired", "break", "rest", "posture", "eyes", "stretch", "ergonomic", "burnout"]),
-            ("well.energy", "⚡", "Energy Management", ["energy", "coffee", "sleep", "nap", "circadian", "productivity", "peak", "ultradian"]),
-            ("well.mood", "🌡️", "Mood & Stress", ["stressed", "anxious", "calm", "breathe", "meditation", "gratitude", "journal"]),
-        ]
-
-        return domains.map { species, emoji, domain, keywords in
-            AgentDNA(id: UUID(), species: species, emoji: emoji, domain: domain,
-                     keywords: keywords, contextBundles: [], fitnessScore: 0.5,
-                     spawnCount: 0, successCount: 0, generation: 0)
-        }
-    }()
-
-    // ── Bilingual Domain (Spanish-specific knowledge) ──
-    static let bilingualGenomes: [AgentDNA] = {
-        let domains: [(String, String, String, [String])] = [
-            ("lang.es.code", "🇪🇸", "Código en Español", ["código", "función", "variable", "clase", "método", "error", "compilar", "optimizar", "depurar"]),
-            ("lang.es.creative", "🇪🇸", "Creativo en Español", ["diseñar", "crear", "arte", "estilo", "concepto", "generar", "visual", "componer"]),
-            ("lang.es.biz", "🇪🇸", "Negocios en Español", ["negocio", "proyecto", "estrategia", "mercado", "ventas", "cliente", "factura", "presupuesto"]),
-            ("lang.translate", "🌍", "Translation", ["translate", "traducir", "idioma", "language", "localize", "i18n", "l10n"]),
-        ]
-
-        return domains.map { species, emoji, domain, keywords in
-            AgentDNA(id: UUID(), species: species, emoji: emoji, domain: domain,
-                     keywords: keywords, contextBundles: [], fitnessScore: 0.5,
-                     spawnCount: 0, successCount: 0, generation: 0)
-        }
-    }()
-
-    /// ALL DNA templates in the registry
-    static var allDNA: [AgentDNA] {
-        codeGenomes + creativeGenomes + infraGenomes + researchGenomes + businessGenomes + wellbeingGenomes + bilingualGenomes
-    }
-
-    /// Total number of DNA templates
-    static var totalSpecies: Int { allDNA.count }
-}
-
 // ═══════════════════════════════════════════════════════════════
 // MARK: - 🐝 SwarmHive (The Coordination Engine)
 // ═══════════════════════════════════════════════════════════════
@@ -778,6 +313,7 @@ final class SwarmHive: ObservableObject {
     @Published var activeSpecies: [String] = []
 
     // ── Subsystems ──
+    private let log = NotchLog.make("SwarmHive")
     let fitness = FitnessTracker.shared
     let telemetry = SwarmTelemetry.shared
     let contextMesh = ContextMesh.shared
@@ -817,7 +353,7 @@ final class SwarmHive: ObservableObject {
 
         telemetry.totalDNATemplates = DNARegistry.totalSpecies + legacyBridge.count
 
-        NSLog("🐝 SwarmHive v3 initialized: \(DNARegistry.totalSpecies) DNA + \(legacyBridge.count) legacy = \(telemetry.totalDNATemplates) total species")
+        log.info("🐝 SwarmHive v3 initialized: \(DNARegistry.totalSpecies) DNA + \(legacyBridge.count) legacy = \(telemetry.totalDNATemplates) total species")
     }
 
     // ════════════════════════════════════════
@@ -930,9 +466,9 @@ final class SwarmHive: ObservableObject {
         }
 
         // Log swarm activity
-        NSLog("🐝 Swarm v3: \(swarm.count) spawned → \(respondedAgents.count) responded → \(result.protocol) in \(String(format: "%.1f", elapsed))ms | Intent: \(contextMesh.intentSignal.rawValue)")
+        log.info("🐝 Swarm v3: \(swarm.count) spawned → \(respondedAgents.count) responded → \(result.protocol) in \(String(format: "%.1f", elapsed))ms | Intent: \(contextMesh.intentSignal.rawValue)")
         for vote in result.breakdown.prefix(5) {
-            NSLog("   \(vote.emoji) \(vote.species): \(String(format: "%.2f", vote.confidence))")
+            log.debug("   \(vote.emoji) \(vote.species): \(String(format: "%.2f", vote.confidence))")
         }
 
         return result
@@ -966,10 +502,10 @@ final class SwarmHive: ObservableObject {
             : matchedKeywords.prefix(3).joined(separator: ", ")
 
         // 2. Real clipboard analysis — parse actual code if present
-        let clipboardAnalysis = analyzeClipboard(sensors.clipboardContent, domain: domain, keywords: agent.dna.keywords)
+        let clipboardAnalysis = SwarmAnalysis.analyzeClipboard(sensors.clipboardContent, domain: domain, keywords: agent.dna.keywords)
 
         // 3. Real query intent classification
-        let queryIntent = classifyQueryIntent(q)
+        let queryIntent = SwarmAnalysis.classifyQueryIntent(q)
 
         // 4. Real app context
         let appName = sensors.activeAppName.isEmpty ? nil : sensors.activeAppName
@@ -1013,23 +549,23 @@ final class SwarmHive: ObservableObject {
         switch queryIntent {
         case .howTo:
             response += "\n\n**Guía paso a paso para \(topicSummary):**"
-            response += generateRealGuidance(for: matchedKeywords, domain: domain, species: species)
+            response += SwarmAnalysis.generateRealGuidance(for: matchedKeywords, domain: domain, species: species)
 
         case .debugging:
             response += "\n\n**🔧 Diagnóstico para \(topicSummary):**"
-            response += generateDebuggingAdvice(for: matchedKeywords, domain: domain, clipboard: clipboardAnalysis)
+            response += SwarmAnalysis.generateDebuggingAdvice(for: matchedKeywords, domain: domain, clipboard: clipboardAnalysis)
 
         case .comparison:
             response += "\n\n**⚖️ Análisis comparativo:**"
-            response += generateComparisonAdvice(for: matchedKeywords, domain: domain)
+            response += SwarmAnalysis.generateComparisonAdvice(for: matchedKeywords, domain: domain)
 
         case .optimization:
             response += "\n\n**⚡ Optimización de \(topicSummary):**"
-            response += generateOptimizationAdvice(for: matchedKeywords, domain: domain)
+            response += SwarmAnalysis.generateOptimizationAdvice(for: matchedKeywords, domain: domain)
 
         case .general:
             response += "\n\n**\(domain) — Análisis contextual:**"
-            response += generateRealGuidance(for: matchedKeywords, domain: domain, species: species)
+            response += SwarmAnalysis.generateRealGuidance(for: matchedKeywords, domain: domain, species: species)
         }
 
         // Add real clipboard analysis if we found something
@@ -1055,297 +591,6 @@ final class SwarmHive: ObservableObject {
     }
 
     // ════════════════════════════════════════
-    // MARK: - Real Analysis Helpers
-    // ════════════════════════════════════════
-
-    /// Classify what the user actually wants
-    private enum QueryIntent {
-        case howTo, debugging, comparison, optimization, general
-    }
-
-    private func classifyQueryIntent(_ q: String) -> QueryIntent {
-        if q.contains("cómo") || q.contains("how") || q.contains("crear") || q.contains("create") || q.contains("hacer") || q.contains("build") || q.contains("implementar") {
-            return .howTo
-        }
-        if q.contains("error") || q.contains("fix") || q.contains("bug") || q.contains("crash") || q.contains("falla") || q.contains("problema") || q.contains("no funciona") || q.contains("debug") {
-            return .debugging
-        }
-        if q.contains("vs") || q.contains("mejor") || q.contains("diferencia") || q.contains("compare") || q.contains("which") || q.contains("cuál") {
-            return .comparison
-        }
-        if q.contains("optimiz") || q.contains("rápido") || q.contains("faster") || q.contains("performance") || q.contains("rendimiento") || q.contains("mejorar") || q.contains("improve") {
-            return .optimization
-        }
-        return .general
-    }
-
-    /// Parse real clipboard content — detect language, patterns, issues
-    private func analyzeClipboard(_ content: String?, domain: String, keywords: [String]) -> String? {
-        guard let clip = content, clip.count > 15 else { return nil }
-        let clipLower = clip.lowercased()
-
-        // Only analyze if clipboard is relevant to this agent's domain
-        let relevantHits = keywords.filter { clipLower.contains($0) }.count
-        guard relevantHits > 0 else { return nil }
-
-        var analysis: [String] = []
-        let lines = clip.components(separatedBy: .newlines)
-        let lineCount = lines.count
-
-        // Detect language from actual code patterns
-        if clipLower.contains("func ") && clipLower.contains("->") || clipLower.contains("@State") || clipLower.contains("var body") {
-            analysis.append("Lenguaje detectado: **Swift**")
-            if clipLower.contains("@State") || clipLower.contains("@Published") {
-                analysis.append("• SwiftUI state management detectado")
-            }
-            if clipLower.contains("Task {") || clipLower.contains("async ") {
-                analysis.append("• Código async/await detectado")
-            }
-            if clipLower.contains("try") && !clipLower.contains("catch") && !clipLower.contains("try?") && !clipLower.contains("try!") {
-                analysis.append("⚠️ `try` sin `catch` — posible crash")
-            }
-        } else if clipLower.contains("def ") || (clipLower.contains("import ") && clipLower.contains(":")) {
-            analysis.append("Lenguaje detectado: **Python**")
-            if clipLower.contains("except:") || clipLower.contains("except Exception") {
-                analysis.append("⚠️ Catch genérico — mejor especificar excepción")
-            }
-        } else if clipLower.contains("const ") || clipLower.contains("=>") || clipLower.contains("require(") {
-            analysis.append("Lenguaje detectado: **JavaScript/TypeScript**")
-            if clipLower.contains("var ") {
-                analysis.append("⚠️ `var` detectado — usa `const` o `let`")
-            }
-            if clipLower.contains("any") {
-                analysis.append("⚠️ `any` detectado — perdida de type safety")
-            }
-        } else if clipLower.contains("fn ") && clipLower.contains("let ") {
-            analysis.append("Lenguaje detectado: **Rust**")
-            if clipLower.contains("unwrap()") {
-                analysis.append("⚠️ `.unwrap()` detectado — usa `?` o `match` en producción")
-            }
-        }
-
-        // Generic code quality signals
-        if lineCount > 50 {
-            analysis.append("📏 \(lineCount) líneas — considera dividir en funciones más pequeñas")
-        }
-        if clipLower.contains("todo") || clipLower.contains("fixme") || clipLower.contains("hack") {
-            analysis.append("📌 TODOs/FIXMEs encontrados en el código")
-        }
-        if clipLower.contains("print(") || clipLower.contains("console.log") || clipLower.contains("NSLog") {
-            analysis.append("🧹 Debug prints detectados — limpiar antes de producción")
-        }
-        if clipLower.contains("force") || clipLower.contains("!") && clipLower.contains("as!") {
-            analysis.append("⚠️ Force unwrap/cast detectado — riesgo de crash")
-        }
-
-        return analysis.isEmpty ? nil : analysis.joined(separator: "\n")
-    }
-
-    /// Generate REAL step-by-step guidance based on matched keywords
-    private func generateRealGuidance(for keywords: [String], domain: String, species: String) -> String {
-        var steps: [String] = []
-
-        // Code domain — real patterns per language/framework
-        if species.hasPrefix("code.") {
-            for kw in keywords {
-                switch kw {
-                case "swift", "swiftui":
-                    steps.append("1. Estructura: `@Observable` class (macOS 14+) > `@Published`")
-                    steps.append("2. Views: `some View` con `@State` local, `@Binding` para child")
-                    steps.append("3. Networking: `async let` para paralelo, `URLSession.shared.data(from:)`")
-                    steps.append("4. Errores: `do/catch` con tipos específicos, nunca `try!` en prod")
-                case "react", "jsx", "hook":
-                    steps.append("1. `useState` para estado local, `useReducer` para estado complejo")
-                    steps.append("2. `useEffect` con deps array correcto — evitar arrays vacíos si hay deps")
-                    steps.append("3. `useMemo`/`useCallback` solo cuando hay re-renders medidos")
-                    steps.append("4. Server Components (Next.js 14+) para datos, Client para interactividad")
-                case "python", "django", "flask":
-                    steps.append("1. Type hints: `def func(x: int) -> str:` — siempre")
-                    steps.append("2. `dataclass` o `pydantic.BaseModel` para estructuras de datos")
-                    steps.append("3. `pathlib.Path` > `os.path` — más expresivo y seguro")
-                    steps.append("4. `uv` > `pip` para gestión de dependencias (10x más rápido)")
-                case "docker", "container":
-                    steps.append("1. Multi-stage build: `FROM node:20 AS builder` → `FROM node:20-slim`")
-                    steps.append("2. `.dockerignore`: `node_modules`, `.git`, `*.md`")
-                    steps.append("3. `COPY package*.json .` ANTES de `COPY . .` (cache de deps)")
-                    steps.append("4. `USER nonroot` — nunca correr como root en producción")
-                case "kubernetes", "k8s":
-                    steps.append("1. `resources.requests` y `limits` siempre definidos")
-                    steps.append("2. `livenessProbe` + `readinessProbe` para health checks")
-                    steps.append("3. `HPA` para autoescalado basado en CPU/memoria")
-                    steps.append("4. `NetworkPolicy` para segmentar tráfico entre pods")
-                case "git":
-                    steps.append("1. Commits: tipo(scope): mensaje — `feat(auth): add OAuth2 flow`")
-                    steps.append("2. Branches: `feature/`, `fix/`, `chore/` prefijos")
-                    steps.append("3. `git rebase -i` para limpiar historial antes de PR")
-                    steps.append("4. Pre-commit hooks: lint + format automático")
-                default:
-                    steps.append("• Analiza el contexto de \(kw) en tu proyecto actual")
-                    steps.append("• Revisa patrones idiomáticos del ecosistema")
-                }
-            }
-        } else if species.hasPrefix("creative.") {
-            for kw in keywords {
-                switch kw {
-                case "ableton", "live", "audio":
-                    steps.append("1. Ganancia de staging: -6dB headroom en master")
-                    steps.append("2. EQ sustractivo primero, aditivo después")
-                    steps.append("3. Compresión: ratio 3:1 para bus, 4:1+ para drums")
-                    steps.append("4. Sidechain: Compressor > External Key > kick track")
-                case "figma", "design":
-                    steps.append("1. Auto Layout para todo — responsive desde el principio")
-                    steps.append("2. Design tokens: colores, tipografía, espaciado como variables")
-                    steps.append("3. Components con variants (state × size × theme)")
-                    steps.append("4. Prototype: Smart Animate entre components para micro-interactions")
-                case "midjourney", "stable diffusion", "prompt":
-                    steps.append("1. Estructura: sujeto + estilo + iluminación + cámara + calidad")
-                    steps.append("2. `--ar 16:9` para panorámico, `--ar 1:1` para cuadrado")
-                    steps.append("3. `--style raw` para menos procesamiento de Midjourney")
-                    steps.append("4. Negative: `blurry, deformed, low quality, watermark`")
-                default:
-                    steps.append("• Aplica principios de \(kw) a tu flujo creativo")
-                }
-            }
-        } else if species.hasPrefix("infra.") {
-            for kw in keywords {
-                switch kw {
-                case "ci", "cd", "pipeline":
-                    steps.append("1. Build → Test → Lint → Security Scan → Deploy")
-                    steps.append("2. Cache de dependencias entre runs (ahorra 60% tiempo)")
-                    steps.append("3. Matrix testing: múltiples versiones en paralelo")
-                    steps.append("4. Deploy: canary 5% → 25% → 100% (nunca 0 → 100)")
-                case "monitoring", "observability":
-                    steps.append("1. RED metrics: Rate, Errors, Duration por servicio")
-                    steps.append("2. Logs estructurados JSON con correlation IDs")
-                    steps.append("3. Distributed tracing con OpenTelemetry")
-                    steps.append("4. Alertas por SLOs, no por síntomas individuales")
-                case "terraform", "iac":
-                    steps.append("1. Remote state: S3 + DynamoDB lock")
-                    steps.append("2. Modules: reutilizables, versionados, documentados")
-                    steps.append("3. `plan` SIEMPRE antes de `apply`")
-                    steps.append("4. Workspaces para separar dev/staging/prod")
-                default:
-                    steps.append("• Revisa tu setup de \(kw) contra best practices actuales")
-                }
-            }
-        } else if species.hasPrefix("well.") {
-            steps.append("1. 🫁 Respiración 4-7-8: Inhala 4s → Mantén 7s → Exhala 8s")
-            steps.append("2. 🧊 Agua fría en muñecas → alerta instantánea")
-            steps.append("3. 🚶 5 min caminando → 2 horas más de foco")
-            steps.append("4. 👁️ Regla 20-20-20: cada 20min, mira 20s a 20 metros")
-        }
-
-        if steps.isEmpty {
-            steps.append("Describe tu caso específico para guía detallada")
-        }
-
-        return "\n" + steps.prefix(5).joined(separator: "\n")
-    }
-
-    /// Generate REAL debugging advice
-    private func generateDebuggingAdvice(for keywords: [String], domain: String, clipboard: String?) -> String {
-        var advice: [String] = []
-
-        advice.append("1. **Reproduce** — aisla el caso mínimo que produce el error")
-        advice.append("2. **Lee** el error completo — stack trace, línea, contexto")
-
-        if keywords.contains("swift") || keywords.contains("swiftui") {
-            advice.append("3. `po variable` en LLDB para inspeccionar estado")
-            advice.append("4. `Thread Sanitizer` para race conditions")
-            advice.append("5. `Instruments > Time Profiler` para performance")
-        } else if keywords.contains("javascript") || keywords.contains("react") || keywords.contains("node") {
-            advice.append("3. `console.trace()` para ver call stack completo")
-            advice.append("4. Chrome DevTools > Sources > breakpoints condicionales")
-            advice.append("5. `node --inspect` + Chrome DevTools para Node.js")
-        } else if keywords.contains("python") {
-            advice.append("3. `import pdb; pdb.set_trace()` o `breakpoint()` (3.7+)")
-            advice.append("4. `python -m pytest -x --pdb` para debuggear en tests")
-            advice.append("5. `traceback.format_exc()` para logs detallados")
-        } else {
-            advice.append("3. Usa el debugger nativo de tu IDE")
-            advice.append("4. Añade logging temporal para trazar el flujo")
-            advice.append("5. Revisa cambios recientes con `git diff`")
-        }
-
-        if clipboard != nil {
-            advice.append("\n📋 El clipboard contiene información relevante — revisa el análisis abajo")
-        }
-
-        return "\n" + advice.joined(separator: "\n")
-    }
-
-    /// Generate REAL comparison advice
-    private func generateComparisonAdvice(for keywords: [String], domain: String) -> String {
-        var analysis: [String] = []
-
-        // Find pairs to compare from keywords
-        let kwSet = Set(keywords)
-        if kwSet.contains("react") || kwSet.contains("vue") {
-            analysis.append("**React vs Vue:**")
-            analysis.append("• React: ecosistema mayor, más control, JSX")
-            analysis.append("• Vue: curva más suave, SFC, template syntax")
-            analysis.append("• Para equipos nuevos: Vue. Para scale: React.")
-        }
-        if kwSet.contains("docker") || kwSet.contains("kubernetes") {
-            analysis.append("**Docker vs Kubernetes:**")
-            analysis.append("• Docker: empaquetar. K8s: orquestar.")
-            analysis.append("• <5 contenedores: Docker Compose basta")
-            analysis.append("• >10 servicios con autoescalado: K8s")
-        }
-        if kwSet.contains("rest") || kwSet.contains("graphql") {
-            analysis.append("**REST vs GraphQL:**")
-            analysis.append("• REST: simple, cacheable, estándar")
-            analysis.append("• GraphQL: flexible, menos over-fetching")
-            analysis.append("• CRUD simple: REST. Datos complejos/nested: GraphQL")
-        }
-
-        if analysis.isEmpty {
-            analysis.append("Especifica qué tecnologías quieres comparar para un análisis detallado de \(domain)")
-        }
-
-        return "\n" + analysis.joined(separator: "\n")
-    }
-
-    /// Generate REAL optimization advice
-    private func generateOptimizationAdvice(for keywords: [String], domain: String) -> String {
-        var tips: [String] = []
-
-        if keywords.contains("swift") || keywords.contains("swiftui") {
-            tips.append("1. `Instruments > Time Profiler` — mide antes de optimizar")
-            tips.append("2. `@State` solo en la view que lo necesita — evita re-renders")
-            tips.append("3. `EquatableView` o `.equatable()` para skip de render")
-            tips.append("4. `LazyVStack/LazyHStack` para listas largas")
-            tips.append("5. `nonisolated` para métodos que no tocan UI")
-        } else if keywords.contains("react") || keywords.contains("javascript") {
-            tips.append("1. React DevTools Profiler — identifica re-renders innecesarios")
-            tips.append("2. `React.memo()` + `useMemo` para computaciones caras")
-            tips.append("3. `dynamic import()` para code splitting")
-            tips.append("4. `Intersection Observer` > scroll events")
-            tips.append("5. `requestIdleCallback` para tareas no urgentes")
-        } else if keywords.contains("python") {
-            tips.append("1. `cProfile` o `py-spy` para profiling")
-            tips.append("2. `numpy`/`pandas` vectorización > loops")
-            tips.append("3. `functools.lru_cache` para memoización")
-            tips.append("4. `asyncio.gather()` para I/O paralelo")
-            tips.append("5. `__slots__` en clases para reducir memoria")
-        } else if keywords.contains("docker") || keywords.contains("kubernetes") {
-            tips.append("1. Multi-stage builds (imagen 60-80% más pequeña)")
-            tips.append("2. `--no-cache` solo cuando necesario")
-            tips.append("3. Alpine/Distroless como base image")
-            tips.append("4. Health checks para restart automático")
-            tips.append("5. Resource limits para evitar noisy neighbors")
-        } else {
-            tips.append("1. **Mide primero** — nunca optimices sin datos")
-            tips.append("2. Identifica el cuello de botella real")
-            tips.append("3. Optimiza el hot path, no todo")
-            tips.append("4. Cache donde sea posible")
-            tips.append("5. Paraleliza I/O, no CPU")
-        }
-
-        return "\n" + tips.joined(separator: "\n")
-    }
-
-    // ════════════════════════════════════════
     // MARK: - Swarm Evolution
     // ════════════════════════════════════════
 
@@ -1359,7 +604,7 @@ final class SwarmHive: ObservableObject {
             dnaPool[i].fitnessScore = fitness.fitness(for: species)
         }
 
-        NSLog("🧬 Swarm evolved — Generation \(fitness.generation), \(dnaPool.count) species active")
+        log.info("🧬 Swarm evolved — Generation \(fitness.generation), \(dnaPool.count) species active")
     }
 
     /// Summary of the hive state for display

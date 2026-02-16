@@ -10,9 +10,10 @@ let package = Package(
         .executableTarget(
             name: "LiveNotch",
             dependencies: [],
-            swiftSettings: [
-                .unsafeFlags(["-Xfrontend", "-enable-actor-data-race-checks"])
+            resources: [
+                .process("Resources")
             ],
+            // Swift 6.2 has strict concurrency built-in; removed legacy -enable-actor-data-race-checks
             linkerSettings: [
                 .linkedFramework("AppKit"),
                 .linkedFramework("SwiftUI"),
@@ -22,7 +23,9 @@ let package = Package(
                 .linkedFramework("EventKit"),
                 .linkedFramework("CoreLocation"),
                 .linkedFramework("GameplayKit"),   // For procedural noise
-                .linkedFramework("Vision")          // For face/eye gesture detection
+                .linkedFramework("Vision"),         // For face/eye gesture detection
+                .linkedFramework("IOBluetooth"),    // AirPods detection & battery
+                .linkedFramework("CoreBluetooth")   // BLE accessory scanning
             ]
         )
     ]

@@ -53,9 +53,7 @@ struct NotchView: View {
     // Peek mode
     @State private var isPeeking = false
     
-    // Brain dump input
-    @State var brainInput: String = ""
-    
+
     // Nervous system glow color
     private var nervousGlowColor: Color {
         viewModel.isPlaying ? viewModel.albumColor : DS.Colors.yinmnBlue
@@ -670,22 +668,22 @@ struct NotchView: View {
             
             // ═══ CONTENT ═══
             if viewModel.isMirrorActive {
-                mirrorPanel()
-                    .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
+                MirrorPanelView(viewModel: viewModel, cameraService: cameraService)
+                    .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: UnitPoint.top)))
             } else if viewModel.isClipboardVisible {
-                clipboardPanel()
+                ClipboardPanelView(viewModel: viewModel, clipboard: clipboard)
                     .transition(.opacity.combined(with: .offset(y: 6)))
             } else if viewModel.isBrainDumpVisible {
-                brainDumpPanel()
+                MindflowPanelView(viewModel: viewModel, brainDump: brainDump)
                     .transition(.opacity.combined(with: .offset(y: 6)))
             } else if viewModel.isVolumeMixerVisible {
-                volumeMixerPanel()
+                VolumeMixerPanelView(viewModel: viewModel, mixer: mixer)
                     .transition(.opacity.combined(with: .offset(y: 6)))
             } else if viewModel.isEyeControlVisible {
-                eyeControlPanel()
+                EyeControlPanelView(viewModel: viewModel)
                     .transition(.opacity.combined(with: .offset(y: 6)))
             } else if viewModel.isQuickLaunchVisible {
-                QuickLaunchPanelView()
+                QuickLaunchPanelView(viewModel: viewModel)
                     .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .center)))
             } else if viewModel.isSwarmVisible {
                 SwarmPanelView(swarm: viewModel.swarm, viewModel: viewModel)
@@ -694,11 +692,14 @@ struct NotchView: View {
                 CalendarPanelView(viewModel: viewModel)
                     .transition(.opacity.combined(with: .offset(y: 6)))
             } else if viewModel.isSettingsVisible {
-                settingsPanel()
+                SettingsPanelView(viewModel: viewModel)
+                    .transition(.opacity.combined(with: .offset(y: 6)))
+            } else if viewModel.isEcosystemHubVisible {
+                EcosystemHubView(viewModel: viewModel)
                     .transition(.opacity.combined(with: .offset(y: 6)))
             } else if !viewModel.droppedFiles.isEmpty {
-                trayPanel()
-                    .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
+                TrayPanelView(viewModel: viewModel)
+                    .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: UnitPoint.top)))
             } else {
                 mainExpandedPanel()
                     .transition(.opacity)
@@ -714,6 +715,7 @@ struct NotchView: View {
         .animation(.spring(response: 0.3, dampingFraction: 0.85), value: viewModel.isSwarmVisible)
         .animation(.spring(response: 0.3, dampingFraction: 0.85), value: viewModel.isCalendarVisible)
         .animation(.spring(response: 0.3, dampingFraction: 0.85), value: viewModel.isSettingsVisible)
+        .animation(.spring(response: 0.3, dampingFraction: 0.85), value: viewModel.isEcosystemHubVisible)
     }
     
     // ── Static formatters (avoid recreating on every render — perf fix) ──
@@ -744,7 +746,7 @@ struct NotchView: View {
     
     var isAnyPanelActive: Bool {
         viewModel.isExpanded || viewModel.isMirrorActive || viewModel.isClipboardVisible ||
-        viewModel.isBrainDumpVisible || viewModel.isVolumeMixerVisible || viewModel.isEyeControlVisible || viewModel.isQuickLaunchVisible || viewModel.isSwarmVisible || viewModel.isCalendarVisible || viewModel.isSettingsVisible || !viewModel.droppedFiles.isEmpty
+        viewModel.isBrainDumpVisible || viewModel.isVolumeMixerVisible || viewModel.isEyeControlVisible || viewModel.isQuickLaunchVisible || viewModel.isSwarmVisible || viewModel.isCalendarVisible || viewModel.isSettingsVisible || viewModel.isEcosystemHubVisible || !viewModel.droppedFiles.isEmpty
     }
     
     private func collapseAll() {
@@ -758,6 +760,7 @@ struct NotchView: View {
         viewModel.isSwarmVisible = false
         viewModel.isCalendarVisible = false
         viewModel.isSettingsVisible = false
+        viewModel.isEcosystemHubVisible = false
         viewModel.showVolumeSlider = false
     }
     

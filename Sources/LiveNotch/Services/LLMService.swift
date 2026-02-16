@@ -9,6 +9,8 @@ import Foundation
 @MainActor
 final class LLMService: ObservableObject {
     static let shared = LLMService()
+    private let log = NotchLog.make("LLMService")
+    
     
     // ── Connection State ──
     @Published var isConnected: Bool = false
@@ -68,14 +70,14 @@ final class LLMService: ObservableObject {
                 isConnected = !modelNames.isEmpty
                 
                 if isConnected {
-                    NSLog("🧠 LLMService: Connected to Ollama — Active: \(activeModel) (Available: \(modelNames.count))")
+                    log.info("Connected to Ollama — Active: \(activeModel) (Available: \(modelNames.count))")
                 } else {
-                    NSLog("🧠 LLMService: Connected to Ollama but NO models found.")
+                    log.warning("Connected to Ollama but NO models found.")
                 }
             }
         } catch {
             isConnected = false
-            NSLog("🧠 LLMService: Ollama not available — \(error.localizedDescription)")
+            log.error("Ollama not available — \(error.localizedDescription)")
         }
     }
     
@@ -155,7 +157,7 @@ final class LLMService: ObservableObject {
                 }
             }
         } catch {
-            NSLog("🧠 LLMService: Generation error — \(error.localizedDescription)")
+            log.error("Generation error — \(error.localizedDescription)")
             // On error, mark disconnected and retry connection later
             isConnected = false
             Task {

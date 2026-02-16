@@ -4,6 +4,7 @@ import AppKit
 @available(macOS 12.0, *)
 class ColorPickerService: ObservableObject {
     static let shared = ColorPickerService()
+    private let log = NotchLog.make("ColorPickerService")
     
     private let sampler = NSColorSampler()
     
@@ -38,7 +39,7 @@ class ColorPickerService: ObservableObject {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         pasteboard.setString(hex, forType: .string)
-        NSLog("🎨 Color Picked: %@", hex)
+        log.info("Color Picked: \(hex)")
     }
 }
 

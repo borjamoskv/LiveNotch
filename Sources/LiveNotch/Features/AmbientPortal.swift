@@ -11,6 +11,8 @@ import AVFoundation
 @MainActor
 final class AmbientPortal: ObservableObject {
     static let shared = AmbientPortal()
+    private let log = NotchLog.make("AmbientPortal")
+
     
     enum Scene: String, CaseIterable, Identifiable {
         case rain = "Rain"
@@ -184,9 +186,9 @@ final class AmbientPortal: ObservableObject {
             self.audioEngine = engine
             self.noiseNode = sourceNode
             self.eqNode = eq
-            NSLog("🌊 AmbientPortal: Started scene '%@'", scene.rawValue)
+            log.info("Started scene '\(scene.rawValue)'")
         } catch {
-            NSLog("🌊 AmbientPortal: Failed to start — %@", error.localizedDescription)
+            log.error("Failed to start — \(error.localizedDescription)")
         }
     }
     

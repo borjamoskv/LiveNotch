@@ -6,3 +6,11 @@ DerivedData/
 .swiftpm/configuration/registries.json
 .swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
 .netrc
+
+# Build artifacts & temp files
+*.log
+build_log*.txt
+build_output*.log
+audit_report.md
+runtime_test.txt
+safety_net.patch

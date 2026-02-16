@@ -23,7 +23,7 @@ extension NotchView {
     func scriptDropPanel() -> some View {
         VStack(spacing: 8) {
             // Header
-            panelHeader(
+            PanelHeader(
                 icon: scriptDrop.stateIcon,
                 iconColor: scriptDrop.stateColor,
                 title: "SCRIPT DROP",

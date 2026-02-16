@@ -1,1 +1,1 @@
-/Users/borjafernandezangulo/.agent/workflows/mejoralo.md
+/Users/borjafernandezangulo/.cortex/workflows/mejoralo.md

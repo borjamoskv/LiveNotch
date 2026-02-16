@@ -1,5 +1,8 @@
 import SwiftUI
 import Combine
+import os
+
+private let gestureLog = NotchLog.make("GestureEye")
 
 // ═══════════════════════════════════════════════════
 // MARK: - 👁️ GestureEye Integration
@@ -44,7 +47,9 @@ extension NervousSystem {
     
     /// Handle detected face gesture → context-aware action
     func handleFaceGesture(_ gesture: FaceGesture) {
-        NSLog("👁️ GestureEye: handleFaceGesture → %@", gesture.rawValue)
+        #if DEBUG
+        gestureLog.debug("👁️ GestureEye: handleFaceGesture → \(gesture.rawValue)")
+        #endif
         
         // Publish to UI for feedback
         DispatchQueue.main.async { [weak self] in
@@ -119,17 +124,22 @@ extension NervousSystem {
     /// Run AppleScript asynchronously
     private func runAppleScript(_ source: String) {
         DispatchQueue.global(qos: .userInitiated).async {
-            NSLog("👁️ GestureEye: Running AppleScript: \(source)")
+            #if DEBUG
+            gestureLog.debug("👁️ GestureEye: Running AppleScript: \(source)")
+            #endif
+            
             if let script = NSAppleScript(source: source) {
                 var error: NSDictionary?
                 script.executeAndReturnError(&error)
                 if let error = error {
-                    NSLog("👁️ GestureEye: ❌ AppleScript error: \(error)")
+                    gestureLog.error("👁️ GestureEye: ❌ AppleScript error: \(error)")
                 } else {
-                    NSLog("👁️ GestureEye: ✅ AppleScript executed OK")
+                    #if DEBUG
+                    gestureLog.debug("👁️ GestureEye: ✅ AppleScript executed OK")
+                    #endif
                 }
             } else {
-                NSLog("👁️ GestureEye: ❌ Could not create NSAppleScript")
+                gestureLog.error("👁️ GestureEye: ❌ Could not create NSAppleScript")
             }
         }
     }

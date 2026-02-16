@@ -12,6 +12,8 @@ import Combine
 
 class SpatialGestureEngine: NSObject, ObservableObject, AVCaptureVideoDataOutputSampleBufferDelegate {
     static let shared = SpatialGestureEngine()
+    private let log = NotchLog.make("SpatialGestureEngine")
+    
     
     @Published var activeAction: NotchAction = .none
     @Published var isCameraAuthorized = false
@@ -52,7 +54,7 @@ class SpatialGestureEngine: NSObject, ObservableObject, AVCaptureVideoDataOutput
             self.configureSession()
         case .notDetermined:
             // CAMERA PERMISSION DISABLED AS REQUESTED
-            NSLog("🖐️ SpatialEngine: Access disabled (Simulation Mode)")
+            log.info("Access disabled (Simulation Mode)")
             self.isCameraAuthorized = false
         default:
             self.isCameraAuthorized = false
@@ -65,7 +67,7 @@ class SpatialGestureEngine: NSObject, ObservableObject, AVCaptureVideoDataOutput
         
         guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .front),
               let input = try? AVCaptureDeviceInput(device: device) else {
-            NSLog("⚠️ SpatialEngine: No front camera found.")
+            log.warning("No front camera found.")
             captureSession.commitConfiguration()
             return
         }
@@ -130,7 +132,7 @@ class SpatialGestureEngine: NSObject, ObservableObject, AVCaptureVideoDataOutput
             processHandPose(observation)
             
         } catch {
-            NSLog("🖐️ SpatialEngine: Vision request failed — %@", error.localizedDescription)
+            log.error("Vision request failed — \(error.localizedDescription)")
         }
     }
     
@@ -158,7 +160,7 @@ class SpatialGestureEngine: NSObject, ObservableObject, AVCaptureVideoDataOutput
                 }
             }
         } catch {
-            NSLog("🖐️ SpatialEngine: Hand pose processing error — %@", error.localizedDescription)
+            log.error("Hand pose processing error — \(error.localizedDescription)")
             return
         }
     }
@@ -189,7 +191,7 @@ class SpatialGestureEngine: NSObject, ObservableObject, AVCaptureVideoDataOutput
     private func triggerAction(_ action: NotchAction) {
         guard !isCoolingDown else { return }
         
-        NSLog("⚡ Jedi Action: %@", String(describing: action))
+        log.info("Jedi Action: \(String(describing: action))")
         self.activeAction = action
         HapticManager.shared.play(.heavy) // Tactile confirmation of air gesture
         

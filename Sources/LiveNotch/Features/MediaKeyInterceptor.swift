@@ -10,7 +10,8 @@ import AppKit
 import ApplicationServices
 import AVFoundation
 
-private let kSystemDefinedEventType = CGEventType(rawValue: 14)!
+private let log = NotchLog.make("MediaKeys")
+private let kSystemDefinedEventType = CGEventType(rawValue: 14) ?? .null
 
 final class MediaKeyInterceptor {
     static let shared = MediaKeyInterceptor()
@@ -37,7 +38,7 @@ final class MediaKeyInterceptor {
         
         // Authorization check (AXIsProcessTrusted)
         if !AXIsProcessTrusted() {
-            print("⚠️ [MediaKeyInterceptor] Not authorized for accessibility.")
+            log.warning("Not authorized for accessibility.")
             // Prompting should happen in UI
             return
         }
@@ -62,7 +63,7 @@ final class MediaKeyInterceptor {
                 CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
             }
             CGEvent.tapEnable(tap: eventTap, enable: true)
-            print("✅ [MediaKeyInterceptor] Started.")
+            log.started("MediaKeyInterceptor")
         }
     }
     
@@ -75,7 +76,7 @@ final class MediaKeyInterceptor {
         }
         runLoopSource = nil
         eventTap = nil
-        print("🛑 [MediaKeyInterceptor] Stopped.")
+        log.info("MediaKeyInterceptor stopped.")
     }
     
     private func handleEvent(_ cgEvent: CGEvent) -> Unmanaged<CGEvent>? {

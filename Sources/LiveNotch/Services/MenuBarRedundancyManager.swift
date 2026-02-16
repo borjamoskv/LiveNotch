@@ -14,6 +14,8 @@ import Combine
 @MainActor
 final class MenuBarRedundancyManager: ObservableObject {
     static let shared = MenuBarRedundancyManager()
+    private let log = NotchLog.make("MenuBarRedundancyManager")
+    
     
     // ── Which icons Live Notch is handling ──
     @Published var managingBattery = false {
@@ -121,7 +123,7 @@ final class MenuBarRedundancyManager: ObservableObject {
             try task.run()
             task.waitUntilExit()
         } catch {
-            NSLog("⚠️ MenuBarRedundancy: Failed to set %@: %@", key, error.localizedDescription)
+            log.error("Failed to set \(key): \(error.localizedDescription)")
         }
     }
     
@@ -135,7 +137,7 @@ final class MenuBarRedundancyManager: ObservableObject {
             try task.run()
         } catch {
             // ControlCenter might not be killable in sandboxed app
-            NSLog("⚠️ MenuBarRedundancy: Could not restart ControlCenter")
+            log.warning("Could not restart ControlCenter")
         }
     }
     

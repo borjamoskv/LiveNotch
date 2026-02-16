@@ -17,6 +17,8 @@ import Foundation
 
 final class NotchPersistence {
     static let shared = NotchPersistence()
+    private let log = NotchLog.make("NotchPersistence")
+    
     
     // ── Keys ──
     enum Key: String, CaseIterable {
@@ -47,6 +49,12 @@ final class NotchPersistence {
         case quickNotes         = "quicknotes_items"
         case scriptHistory      = "script_history"
         case pinnedApps         = "quicklaunch_pinned"
+        
+        // AI / Evolution
+        case evolutionGenome    = "evolution_genome"
+        
+        // User Profile
+        case userProfileAccent  = "user_profile_accent"
     }
     
     // ── Save Priority ──
@@ -171,10 +179,10 @@ final class NotchPersistence {
                 let data = try Data(contentsOf: stateFilePath)
                 if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
                     store = json
-                    NSLog("🗄️ NotchPersistence: Loaded %d keys", store.count)
+                    log.info("Loaded \(store.count) keys")
                 }
             } catch {
-                NSLog("🗄️ NotchPersistence: Load failed — %@, attempting recovery", error.localizedDescription)
+                log.error("Load failed — \(error.localizedDescription), attempting recovery")
                 recoverFromCorruption()
             }
         }
@@ -186,11 +194,11 @@ final class NotchPersistence {
            let data = try? Data(contentsOf: backupPath),
            let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
             store = json
-            NSLog("🗄️ NotchPersistence: Recovered %d keys from backup", store.count)
+            log.info("Recovered \(store.count) keys from backup")
             return
         }
         store = [:]
-        NSLog("🗄️ NotchPersistence: No backup available, starting fresh")
+        log.info("No backup available, starting fresh")
     }
     
     private func scheduleSave() {
@@ -215,7 +223,7 @@ final class NotchPersistence {
             }
             try data.write(to: stateFilePath, options: .atomic)
         } catch {
-            NSLog("🗄️ NotchPersistence: Save failed — %@", error.localizedDescription)
+            log.error("Save failed — \(error.localizedDescription)")
         }
     }
     
@@ -226,7 +234,7 @@ final class NotchPersistence {
     private func migrateIfNeeded() {
         guard !UserDefaults.standard.bool(forKey: migrationKey) else { return }
         
-        NSLog("🗄️ NotchPersistence: Migrating from UserDefaults...")
+        log.info("Migrating from UserDefaults...")
         
         // Backup state before migration for rollback
         let backupPath = stateFilePath.appendingPathExtension("pre-migration")
@@ -285,9 +293,9 @@ final class NotchPersistence {
             try data.write(to: stateFilePath, options: .atomic)
             defaults.set(true, forKey: migrationKey)
             try? FileManager.default.removeItem(at: backupPath)  // Clean up pre-migration backup
-            NSLog("🗄️ NotchPersistence: Migration complete ✓ (%d keys)", store.count)
+            log.info("Migration complete ✓ (\(store.count) keys)")
         } catch {
-            NSLog("🗄️ NotchPersistence: Migration FAILED — %@, rolling back", error.localizedDescription)
+            log.error("Migration FAILED — \(error.localizedDescription), rolling back")
             store = snapshotStore  // Restore in-memory state
             if FileManager.default.fileExists(atPath: backupPath.path) {
                 try? FileManager.default.removeItem(at: stateFilePath)

@@ -47,7 +47,7 @@ final class AIController: ObservableObject {
         aiQuery = ""
         
         let context = NervousSystem.shared.currentAIContext
-        let llm = LLMService.shared
+        // let llm = LLMService.shared - removed unused
         
         // Always use Swarm Intelligence (Deep Integration)
         Task {

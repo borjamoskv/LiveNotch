@@ -11,13 +11,14 @@ import Combine
 @MainActor
 final class UserModeManager: ObservableObject {
     static let shared = UserModeManager()
+    private let log = NotchLog.make("UserModeManager")
     
     @Published var activeMode: UserMode = .normal {
         didSet {
             if oldValue != activeMode {
                 applyMode(activeMode)
                 HapticManager.shared.play(.toggle)
-                NSLog("🎛️ Mode changed: \(oldValue.rawValue) → \(activeMode.rawValue)")
+                log.info("Mode changed: \(oldValue.rawValue) → \(activeMode.rawValue)")
             }
         }
     }
@@ -50,7 +51,7 @@ final class UserModeManager: ObservableObject {
             nervous.breathIntensity = 0.01
             nervous.chameleonEnabled = false
             GestureEyeEngine.shared.isEnabled = false
-            // TODO: NSFocusManager.shared.setFocusStatus(.on)
+            // MARK: - [Deferred] Focus management via NSFocusManager (Phase 2)
             
         case .dj:
             // DJ Mode:

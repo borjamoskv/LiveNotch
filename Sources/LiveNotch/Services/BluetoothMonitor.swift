@@ -34,6 +34,7 @@ final class BluetoothMonitor: ObservableObject {
     
     @Published var connectedDevice: BTDevice? = nil
     @Published var showConnectAnimation = false
+    private let log = NotchLog.make("BluetoothMonitor")
     private var timer: Timer?
     private var lastDeviceName: String = ""
     
@@ -85,7 +86,7 @@ final class BluetoothMonitor: ObservableObject {
                     }
                 }
             } catch {
-                NSLog("⚠️ BluetoothMonitor: Error running system_profiler: %@", error.localizedDescription)
+                self.log.error("Error running system_profiler: \(error.localizedDescription)")
             }
         }
     }

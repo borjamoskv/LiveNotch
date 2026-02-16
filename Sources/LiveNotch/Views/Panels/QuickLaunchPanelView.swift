@@ -6,10 +6,42 @@ import SwiftUI
 
 struct QuickLaunchPanelView: View {
     @ObservedObject var launcher = QuickLaunchService.shared
+    @ObservedObject var viewModel: NotchViewModel // Added dependency
     @State private var hoveredID: UUID?
     
     var body: some View {
         VStack(spacing: DS.Space.sm) {
+            
+            // ── Ecosystem Hub ──
+            Button(action: {
+                viewModel.isQuickLaunchVisible = false
+                viewModel.isEcosystemHubVisible = true
+                HapticManager.shared.play(.toggle)
+            }) {
+                HStack {
+                    Image(systemName: "applelogo")
+                        .font(DS.Fonts.smallBold)
+                    Text("ECOSYSTEM HUB")
+                        .font(DS.Fonts.tinyBold)
+                        .tracking(1)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(DS.Fonts.microBold)
+                        .opacity(0.5)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color.white.opacity(0.05))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
+                )
+            }
+            .buttonStyle(ScaleButtonStyle())
+            
             // ── Pinned Apps ──
             if !launcher.pinnedApps.isEmpty {
                 sectionHeader(icon: "pin.fill", title: "PINNED", color: .yellow)

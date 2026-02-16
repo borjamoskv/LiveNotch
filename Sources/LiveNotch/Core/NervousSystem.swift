@@ -1,6 +1,9 @@
 import SwiftUI
 import Combine
 import AppKit
+import os
+
+private let nervousLog = NotchLog.make("NervousSystem")
 
 // ═══════════════════════════════════════════════════
 // MARK: - 🧠 Nervous System — The Soul of the Notch
@@ -24,6 +27,9 @@ final class NervousSystem: ObservableObject {
         case stressed   // 🔴 System under load — high CPU, many switches
         case music      // 🎵 Music playing — album color dominates
         case meeting    // 🟡 Video call active — Zoom/Meet/Teams/FaceTime
+        case creative   // 🟣 Creative apps — Photoshop, Ableton, etc.
+        case coding     // 🔵 Coding apps — generic coding state
+        case dreaming   // 🟣 Late night / inactive state
     }
     
     // ── Smart Actions ──
@@ -93,12 +99,12 @@ final class NervousSystem: ObservableObject {
     // masterHeartbeat removed — now managed by SmartPolling coordinator
     private var tick: UInt64 = 0
     
-    private var meetingStartDate: Date?
-    private var appSwitchTimestamps: [Date] = []
-    private var lastMoodChange = Date()
-    private var lastInputTime = Date()
-    private var flowStartTime: Date?
-    private var sessionStartTime = Date()
+    var meetingStartDate: Date?
+    var appSwitchTimestamps: [Date] = []
+    var lastMoodChange = Date()
+    var lastInputTime = Date()
+    var flowStartTime: Date?
+    var sessionStartTime = Date()
     private var cancellables = Set<AnyCancellable>()
     private var lastActiveBundle: String = ""
     
@@ -113,7 +119,9 @@ final class NervousSystem: ObservableObject {
     ]
     
     private init() {
-        NSLog("🧠 NervousSystem: init START")
+        #if DEBUG
+        nervousLog.debug("🧠 NervousSystem: init START")
+        #endif
         startHeartbeat()
         observeAppSwitches()
         
@@ -128,7 +136,9 @@ final class NervousSystem: ObservableObject {
             }
         }
         
-        NSLog("🧠 NervousSystem: calling setupGestureEye...")
+        #if DEBUG
+        nervousLog.debug("🧠 NervousSystem: calling setupGestureEye...")
+        #endif
         setupGestureEye()
         
         // 🔮 Sync with Notch Intelligence (Thinking State)
@@ -140,7 +150,9 @@ final class NervousSystem: ObservableObject {
             }
             .store(in: &cancellables)
             
-        NSLog("🧠 NervousSystem: init COMPLETE")
+        #if DEBUG
+        nervousLog.debug("🧠 NervousSystem: init COMPLETE")
+        #endif
     }
     
     // ═══════════════════════════════════════════════
@@ -173,120 +185,11 @@ final class NervousSystem: ObservableObject {
     
 
     // ════════════════════════════════════════
-    // MARK: - Mood Engine
+    // MARK: - Chameleon Engine
     // ════════════════════════════════════════
-    // Mood is evaluated every 2s via checkMood() called by pulse()
-    
-    private func evaluateMood() {
-        let cpu = SystemMonitor.shared.cpuUsage
-        let isPlaying = isPlayingMusic
-        let switchRate = recentAppSwitchRate()
-        
-        let newMood: Mood
-        
-        // Priority-based mood selection
-        if isMeetingActive {
-            newMood = .meeting
-        } else if isPlaying {
-            newMood = .music
-        } else if cpu > 70 || switchRate > 8 {
-            newMood = .stressed
-        } else if isAsleep {
-            newMood = .idle
-        } else if isInFlowState {
-            newMood = .focus
-        } else if switchRate < 2 && cpu < 30 {
-            let hasRecentInput = switchRate > 0
-            newMood = hasRecentInput ? .focus : .idle
-        } else if isThinkingAI {
-            newMood = .active // We'll boost intensity in active or create a sub-state
-        } else {
-            newMood = .active
-        }
-        
-        // Only transition if mood actually changed (with debounce)
-        if newMood != currentMood {
-            let timeSinceLastChange = Date().timeIntervalSince(lastMoodChange)
-            if timeSinceLastChange > 3.0 || newMood == .music || newMood == .meeting {
-                transitionTo(newMood)
-            }
-        }
-    }
-    
-    private func transitionTo(_ mood: Mood) {
-        lastMoodChange = Date()
-        
-        withAnimation(.easeInOut(duration: 1.5)) {
-            currentMood = mood
-            
-            // 🪞 Emotional modulation: anxiety speeds breathing, calm slows it
-            let anxietyMod = 1.0 - (anxietyLevel * 0.4)  // high anxiety → faster
-            let energyMod = 0.7 + (energyCurve * 0.6)     // low energy → slower
-            
-            switch mood {
-            case .idle:
-                if isAsleep {
-                    // 😴 Sleep mode: nearly invisible
-                    moodColor = .white.opacity(0.02)
-                    breathRate = 10.0  // very slow, barely perceptible
-                    breathIntensity = 0.015
-                } else {
-                    moodColor = .white.opacity(0.05)
-                    breathRate = 6.0 * anxietyMod * energyMod
-                    breathIntensity = 0.03
-                }
-                smartAction = .expandPanel
-                smartIcon = "bolt.fill"
-                
-            case .focus:
-                // 🦎 In focus mode, use the app's color
-                moodColor = activeAppColor.opacity(isInFlowState ? 0.7 : 0.5)
-                breathRate = isInFlowState ? 5.0 : 4.0 * anxietyMod  // flow = deep calm
-                breathIntensity = isInFlowState ? 0.04 : 0.06
-                applyChameleonOverrides()
-                
-            case .active:
-                // 🦎 Active: tinted by current app, modulated by anxiety
-                moodColor = activeAppColor.opacity(0.5)
-                breathRate = max(1.5, 2.5 * anxietyMod * energyMod)
-                breathIntensity = 0.06 + (anxietyLevel * 0.04)  // more anxious = more visible
-                applyChameleonOverrides()
-                
-            case .stressed:
-                moodColor = Color(red: 0.9, green: 0.3, blue: 0.2).opacity(0.5)
-                breathRate = 0.8
-                breathIntensity = 0.12
-                smartAction = .expandPanel
-                smartIcon = "bolt.fill"
-                
-            case .music:
-                breathRate = 2.0 * energyMod
-                breathIntensity = 0.10
-                smartAction = .nextTrack
-                smartIcon = "forward.fill"
-                
-            case .meeting:
-                moodColor = Color(red: 0.9, green: 0.7, blue: 0.1).opacity(0.6)
-                breathRate = 0
-                breathIntensity = 0.15
-                smartAction = .showMeeting
-                smartIcon = "video.fill"
-            }
-            
-            // ── AI Thinking Override (Top Priority for Visuals) ──
-            if isThinkingAI {
-                breathRate = 0.8
-                breathIntensity = 0.15
-                moodColor = Color.cyan.opacity(0.6) // Psionic blue
-            }
-            
-            // 🌅 Time-of-day color temperature overlay
-            applyTimeOfDayTint()
-        }
-    }
     
     /// 🦎 Apply chameleon overrides from the active app profile
-    private func applyChameleonOverrides() {
+    internal func applyChameleonOverrides() {
         if let bundleID = NSWorkspace.shared.frontmostApplication?.bundleIdentifier,
            let profile = chameleonProfiles[bundleID] {
             smartAction = profile.action
@@ -302,16 +205,6 @@ final class NervousSystem: ObservableObject {
         }
     }
     
-    // ════════════════════════════════════════
-    // MARK: - 🪞 Emotional Mirror Engine
-    // ════════════════════════════════════════
-    //
-    // This is the SOUL. The notch reflects YOUR state:
-    // - Anxiety from app-switching frequency
-    // - Energy from time of day
-    // - Flow from sustained focus
-    // - Sleep from inactivity
-    
     private func startEmotionalMirror() {
         // Track keyboard/mouse activity for idle/sleep detection
         NSEvent.addGlobalMonitorForEvents(matching: [.keyDown, .mouseMoved, .leftMouseDown, .scrollWheel]) { [weak self] _ in
@@ -323,128 +216,10 @@ final class NervousSystem: ObservableObject {
                 }
             }
         }
-        
-        // Emotional Mirror: Global input tracking is now handled in init()
-        // Emotional evaluation is handled by pulse()
     }
     
-    private func evaluateEmotionalState() {
-        let now = Date()
-        
-        // ── 1. Anxiety: app switches in last 60s ──
-        let switchRate = recentAppSwitchRate()
-        let targetAnxiety = min(Double(switchRate) / 10.0, 1.0)  // 10+ switches/min = max anxiety
-        
-        withAnimation(.easeInOut(duration: 3.0)) {
-            // Smooth towards target (don't snap)
-            anxietyLevel = anxietyLevel * 0.7 + targetAnxiety * 0.3
-        }
-        
-        // ── 2. Energy: circadian curve ──
-        let hour = Calendar.current.component(.hour, from: now)
-        let minute = Calendar.current.component(.minute, from: now)
-        let hourDecimal = Double(hour) + Double(minute) / 60.0
-        
-        // Energy peaks at 10am and 3pm, dips at 2pm (post-lunch) and after 10pm
-        let targetEnergy: Double
-        switch hourDecimal {
-        case 6..<9:    targetEnergy = 0.4 + (hourDecimal - 6) * 0.15   // Morning ramp up
-        case 9..<12:   targetEnergy = 0.85 + sin((hourDecimal - 9) * .pi / 3) * 0.15  // Morning peak
-        case 12..<14:  targetEnergy = 0.7 - (hourDecimal - 12) * 0.1  // Post-lunch dip
-        case 14..<17:  targetEnergy = 0.5 + sin((hourDecimal - 14) * .pi / 3) * 0.3  // Afternoon peak
-        case 17..<21:  targetEnergy = 0.6 - (hourDecimal - 17) * 0.08 // Evening decline
-        case 21..<24:  targetEnergy = max(0.15, 0.3 - (hourDecimal - 21) * 0.05)  // Night wind down
-        default:       targetEnergy = 0.15  // Late night / early morning
-        }
-        
-        withAnimation(.easeInOut(duration: 5.0)) {
-            energyCurve = energyCurve * 0.8 + targetEnergy * 0.2
-        }
-        
-        // ── 3. Flow state: same app for >5 min + low switch rate ──
-        let timeSinceLastSwitch: TimeInterval
-        if let lastSwitch = appSwitchTimestamps.last {
-            timeSinceLastSwitch = now.timeIntervalSince(lastSwitch)
-        } else {
-            timeSinceLastSwitch = now.timeIntervalSince(sessionStartTime)
-        }
-        
-        let wasInFlow = isInFlowState
-        if timeSinceLastSwitch > 300 && switchRate <= 1 {  // 5+ min same app, ≤1 switch
-            if !isInFlowState {
-                flowStartTime = now
-                withAnimation(.easeInOut(duration: 3.0)) {
-                    isInFlowState = true
-                }
-            }
-        } else {
-            if isInFlowState {
-                flowStartTime = nil
-                withAnimation(.easeInOut(duration: 2.0)) {
-                    isInFlowState = false
-                }
-            }
-        }
-        
-        // ── 4. Sleep detection: no input for >5 min ──
-        let timeSinceInput = now.timeIntervalSince(lastInputTime)
-        if timeSinceInput > 300 && !isAsleep {  // 5 min
-            withAnimation(.easeInOut(duration: 4.0)) {
-                isAsleep = true
-            }
-        }
-        
-        // ── 5. Session duration ──
-        sessionMinutes = Int(now.timeIntervalSince(sessionStartTime) / 60)
-        
-        // ── 6. Compute final ambient glow ──
-        computeAmbientGlow()
-        
-        // Re-evaluate mood with new emotional data
-        if !wasInFlow && isInFlowState || wasInFlow && !isInFlowState {
-            evaluateMood()
-        }
-    }
     
     /// Compute the final ambient glow color based on all emotional inputs
-    private func computeAmbientGlow() {
-        withAnimation(.easeInOut(duration: 2.0)) {
-            if isAsleep {
-                ambientGlow = .white.opacity(0.02)
-            } else if isPlayingMusic {
-                ambientGlow = moodColor  // Music dominates
-            } else if isInFlowState {
-                // Flow: deep, calm version of app color
-                ambientGlow = activeAppColor.opacity(0.4)
-            } else {
-                // Normal: blend app color with anxiety intensity
-                let intensity = 0.2 + anxietyLevel * 0.3
-                ambientGlow = activeAppColor.opacity(intensity)
-            }
-        }
-    }
-    
-    /// 🌅 Shift color temperature based on time of day
-    private func applyTimeOfDayTint() {
-        let hour = Calendar.current.component(.hour, from: Date())
-        
-        // Late night (11pm-5am): dim everything significantly
-        if hour >= 23 || hour < 5 {
-            breathIntensity *= 0.5
-            // Don't override moodColor — just reduce intensity
-        }
-        // Morning (6-8am): warm golden bias
-        else if hour >= 6 && hour < 8 {
-            // Subtle warm tint — don't override, just nudge
-            if currentMood == .idle || currentMood == .active {
-                moodColor = Color(red: 0.9, green: 0.7, blue: 0.3).opacity(0.15)
-            }
-        }
-        // Evening (8-10pm): warm amber
-        else if hour >= 20 && hour < 23 {
-            breathIntensity *= 0.8
-        }
-    }
     
     // ════════════════════════════════════════
     // MARK: - Meeting Detection
@@ -542,11 +317,6 @@ final class NervousSystem: ObservableObject {
     
     // Color extraction moved to NervousSystem+Accessibility.swift
     
-    /// Switches per minute in the last 60 seconds
-    private func recentAppSwitchRate() -> Int {
-        let cutoff = Date().addingTimeInterval(-60)
-        return appSwitchTimestamps.filter { $0 > cutoff }.count
-    }
     
     // ════════════════════════════════════════
     // MARK: - External State (set by ViewModel)

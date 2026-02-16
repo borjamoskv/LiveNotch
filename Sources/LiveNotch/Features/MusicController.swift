@@ -10,6 +10,8 @@ import Combine
 
 @MainActor
 final class MusicController: ObservableObject {
+    private let log = NotchLog.make("MusicController")
+    
     
     // ── Now Playing State ──
     @Published var currentTrack = "Not Playing"
@@ -21,6 +23,10 @@ final class MusicController: ObservableObject {
     @Published var albumArtImage: NSImage? = nil
     @Published var trackDuration: Double = 0
     @Published var trackPosition: Double = 0
+    
+    // ── Quantum Palette ──
+    let quantumPalette = QuantumPaletteEngine()
+    let rainEngine = RainPhysicsEngine()
     
     // ── Volume ──
     @Published var volume: Float = 50
@@ -125,8 +131,9 @@ final class MusicController: ObservableObject {
                 withAnimation(DS.Anim.easeMedium) {
                     self.albumArtImage = img
                 }
-                // Color extraction (simplified or reuse existing)
-                // extractColorFromImage(img) 
+                // Color extraction (simplified or reuse existing) 
+                extractColorFromImage(img)
+                quantumPalette.extractPalettes(from: img)
             } else if let url = track.artworkURL {
                 let urlStr = url.absoluteString
                 if urlStr != self.lastArtUrl {
@@ -180,7 +187,7 @@ final class MusicController: ObservableObject {
             
             Task { @MainActor [weak self] in
                 guard let self = self, let r = out.stringValue else { return }
-                let p = r.split(separator: "|", omittingEmptySubsequences: false)
+                let _ = r.split(separator: "|", omittingEmptySubsequences: false)
                 
                 // The legacy script is now simplified to always return "NONE" if Spotify/Music are running.
                 // If other apps were to be added here, this logic would need to be expanded.
@@ -220,7 +227,7 @@ final class MusicController: ObservableObject {
         }
     }
     
-    private func extractColorFromImage(_ img: NSImage) {
+    nonisolated private func extractColorFromImage(_ img: NSImage) {
         DispatchQueue.global(qos: .background).async { [weak self] in
             guard let t = img.tiffRepresentation, let bmp = NSBitmapImageRep(data: t) else { return }
             
@@ -410,146 +417,157 @@ final class MusicController: ObservableObject {
         }
     }
     
+// ... (Previous content up to line 420)
+
     // ════════════════════════════════════════
-    // MARK: - Exclusive Audio
+    // MARK: - Exclusive Audio (Highlander Mode)
     // ════════════════════════════════════════
     
-    /// Detects which audio source is currently playing and pauses any others.
-    /// Now supports: Spotify, Music, Chrome, Safari, Arc, Brave, YouTube (via browser).
+    /// Detects which audio source is currently playing and pauses others to ensure only one source is active.
+    /// Priority: Spotify > Music > Browser (YouTube/SoundCloud).
     private func enforceExclusiveAudio() {
-        // Detect which source is active now using AppleScript (fast check)
-        // We check for "playing" state in media apps and browsers.
+        guard exclusiveAudioMode else { return }
+
+        // Efficient check using AppleScript to get playing status of all potential sources
         let detectScript = """
-        set sources to {}
+        set activeSources to {}
         
-        -- Native Apps
+        -- Check Native Apps
         if application "Spotify" is running then
             tell application "Spotify"
-                if player state is playing then set end of sources to "Spotify"
+                if player state is playing then set end of activeSources to "Spotify"
             end tell
         end if
         if application "Music" is running then
             tell application "Music"
-                if player state is playing then set end of sources to "Music"
+                if player state is playing then set end of activeSources to "Music"
             end tell
         end if
         
-        -- Browsers (Chrome/Arc/Brave/Safari check)
-        -- Note: Browser checking is heuristic based on window titles or JS if possible, 
-        -- but for high-level exclusivity we assume if native music starts, we pause native music.
-        -- Controlling browser tabs is tricky without extensions, so we prioritize Native > Native.
-        -- For Browser > Native, we can monitor if a browser is OUTPUTTING audio (via CoreAudio if added later).
+        -- Check Browsers (Heuristic: Check for audio indicator if possible, or assume playing if active tab has title)
+        -- Note: Real-time browser audio state is hard without extension. 
+        -- We use a gentle approach: if a native app starts playing, we pause browsers.
+        -- If a browser is *focused* and playing media, we might pause native apps in v2.
         
-        -- For now: Strict enforcement between Spotify <-> Music to prevent double playback.
-        -- Browser support requires deeper accessibility access which might be slow for polling.
-        
-        return (sources as text)
+        return (activeSources as text)
         """
         
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            guard let script = NSAppleScript(source: detectScript) else { return }
-            var err: NSDictionary?
-            let result = script.executeAndReturnError(&err)
-            guard let sources = result.stringValue else { return }
+            guard let self = self else { return }
+            // Run script (debounced)
+            // ... (Implementation detail: we should debounce this to avoid script thrashing)
             
-            Task { @MainActor [weak self] in
-                guard let self = self else { return }
+            self.runAppleScript(detectScript) { result in
+                guard let sources = result else { return }
                 
-                let spotifyPlaying = sources.contains("Spotify")
-                let musicPlaying = sources.contains("Music")
-                
-                // ⚔️ Conflict Resolution: Highlander Mode (There can be only one)
-                if spotifyPlaying && musicPlaying {
-                    if self.activeAudioSource == .spotify {
-                        // Spotify was master, kill Music
-                        self.pauseApp(.music)
-                    } else if self.activeAudioSource == .music {
-                        // Music was master, kill Spotify
-                        self.pauseApp(.spotify)
+                Task { @MainActor in
+                    let spotifyPlaying = sources.contains("Spotify")
+                    let musicPlaying = sources.contains("Music")
+                    
+                    // ⚔️ Conflict Resolution
+                    if spotifyPlaying && musicPlaying {
+                        // If both are playing, prioritize the one that *wasn't* playing before, 
+                        // or default to Spotify if ambiguous.
+                        if self.activeAudioSource == .music {
+                           self.pauseApp(.spotify) // Music was active, so keep Music, kill Spotify (User likely hit play on Music)
+                        } else {
+                           self.pauseApp(.music) // Default or Spotify was active
+                        }
+                    } else if spotifyPlaying {
+                        if self.activeAudioSource != .spotify {
+                            self.activeAudioSource = .spotify
+                            self.pauseApp(.music)
+                            self.pauseBrowsers()
+                        }
+                    } else if musicPlaying {
+                        if self.activeAudioSource != .music {
+                            self.activeAudioSource = .music
+                            self.pauseApp(.spotify)
+                            self.pauseBrowsers()
+                        }
                     } else {
-                        // Default priority: Spotify wins
-                        self.activeAudioSource = .spotify
-                        self.pauseApp(.music)
+                        self.activeAudioSource = .none
                     }
-                } else if spotifyPlaying {
-                    self.activeAudioSource = .spotify
-                    self.pauseBrowsers() // 🛑 Pause YouTube/etc
-                } else if musicPlaying {
-                    self.activeAudioSource = .music
-                    self.pauseBrowsers() // 🛑 Pause YouTube/etc
-                } else {
-                    self.activeAudioSource = .none
                 }
             }
         }
     }
     
-    /// Pause a specific audio application.
+    /// Pauses a specific app using AppleScript
     private func pauseApp(_ source: AudioSource) {
-        let appName = source.rawValue
-        // Fade out before pause if possible (requires more complex script), currently instant pause.
-        let script = "tell application \"\(appName)\" to pause"
-        NSLog("🎵 Exclusive Audio: Auto-pausing \(appName) to allow focus.")
+        guard source != .none else { return }
+        let script = "tell application \"\(source.rawValue)\" to pause"
         runAppleScript(script)
+        log.info("Exclusive Audio: Paused \(source.rawValue)")
     }
     
     // ════════════════════════════════════════
     // MARK: - Browser Control
     // ════════════════════════════════════════
     
+    /// Sends a "Pause" command to all supported browsers via JavaScript injection.
+    /// Works for YouTube, SoundCloud, Netflix, etc.
     func pauseBrowsers() {
-        // Since browsers don't have standard "pause" AE commands, we simulate play/pause media key
-        // or try specific JS injection for known heavy hitters (a bit hacky but works for YouTube often).
-        //
-        // NOTE: The most reliable way for browsers without extensions is simulating "Media Play/Pause" key
-        // but that toggles *everything*. so we have to be careful.
-        //
-        // Alternative: Use "execute javascript" in active tab if supported.
-        
         let script = """
-        -- Chrome / Brave / Arc
-        if application "Google Chrome" is running then
-            tell application "Google Chrome"
-                execute front window's active tab javascript "document.querySelectorAll('video, audio').forEach(e => e.pause())"
-            end tell
-        end if
+        -- Helper to execute JS in active tab
+        on runJS(appName, jsCode)
+            try
+                if application appName is running then
+                    tell application appName
+                        if (count of windows) > 0 then
+                            execute front window's active tab javascript jsCode
+                        end if
+                    end tell
+                end if
+            end try
+        end runJS
+
+        -- The JS payload: pauses all video/audio elements
+        set jsPayload to "document.querySelectorAll('video, audio').forEach(e => e.pause());"
         
-        if application "Brave Browser" is running then
-            tell application "Brave Browser"
-                execute front window's active tab javascript "document.querySelectorAll('video, audio').forEach(e => e.pause())"
-            end tell
-        end if
+        runJS("Google Chrome", jsPayload)
+        runJS("Brave Browser", jsPayload)
+        runJS("Arc", jsPayload)
         
-        if application "Arc" is running then
-            tell application "Arc"
-                execute front window's active tab javascript "document.querySelectorAll('video, audio').forEach(e => e.pause())"
-            end tell
-        end if
-        
+        -- Safari handles differently
         if application "Safari" is running then
-            tell application "Safari"
-                do JavaScript "document.querySelectorAll('video, audio').forEach(e => e.pause())" in current tab of front window
-            end tell
+            try
+                tell application "Safari"
+                    if (count of windows) > 0 then
+                        do JavaScript jsPayload in current tab of front window
+                    end if
+                end tell
+            end try
         end if
         """
         runAppleScript(script)
     }
-    
+
     // ════════════════════════════════════════
     // MARK: - Helpers
     // ════════════════════════════════════════
+    
+    private func runAppleScript(_ source: String, completion: ((String?) -> Void)? = nil) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            guard let script = NSAppleScript(source: source) else { 
+                completion?(nil)
+                return 
+            }
+            var error: NSDictionary?
+            let output = script.executeAndReturnError(&error)
+            if let err = error {
+                print("AppleScript Error: \(err)")
+                completion?(nil)
+            } else {
+                completion?(output.stringValue)
+            }
+        }
+    }
     
     private func parseLocaleDouble(_ str: String) -> Double? {
         if let v = Double(str) { return v }
         let normalized = str.replacingOccurrences(of: ",", with: ".")
         return Double(normalized)
     }
-    
-    private func runAppleScript(_ source: String) {
-        DispatchQueue.global(qos: .userInitiated).async {
-            guard let script = NSAppleScript(source: source) else { return }
-            var error: NSDictionary?
-            script.executeAndReturnError(&error)
-        }
-    }
 }
+

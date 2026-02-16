@@ -22,6 +22,8 @@ import Combine
 @MainActor
 final class NotchRelay: ObservableObject {
     static let shared = NotchRelay()
+    private let log = NotchLog.make("NotchRelay")
+    
     
     // ── Connection State ──
     enum ConnectionState: String {
@@ -100,14 +102,14 @@ final class NotchRelay: ObservableObject {
             if self?.state == .connecting {
                 self?.state = .connected
                 self?.reconnectAttempts = 0
-                NSLog("📡 NotchRelay: SSE connected ✓")
+                self?.log.info("SSE connected ✓")
             }
         }
         
         // Start periodic state updates to backend
         startStateUpdates()
         
-        NSLog("📡 NotchRelay: Connecting SSE to \(baseURL)")
+        log.info("Connecting SSE to \(baseURL)")
     }
     
     /// Disconnect
@@ -120,14 +122,14 @@ final class NotchRelay: ObservableObject {
         stateUpdateTimer?.invalidate()
         state = .disconnected
         isPhoneConnected = false
-        NSLog("📡 NotchRelay: Disconnected")
+        log.info("Disconnected")
     }
     
     /// Auto-reconnect with exponential backoff
     private func scheduleReconnect() {
         guard reconnectAttempts < maxReconnectAttempts else {
             state = .disconnected
-            NSLog("📡 NotchRelay: Max reconnect attempts reached")
+            log.warning("Max reconnect attempts reached")
             return
         }
         
@@ -135,7 +137,7 @@ final class NotchRelay: ObservableObject {
         reconnectAttempts += 1
         let delay = min(Double(reconnectAttempts) * 2.0, 30.0)
         
-        NSLog("📡 NotchRelay: Reconnecting in \(delay)s (attempt \(reconnectAttempts))")
+        log.info("Reconnecting in \(delay)s (attempt \(reconnectAttempts))")
         
         reconnectTimer = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
             Task { @MainActor in
@@ -175,11 +177,11 @@ final class NotchRelay: ObservableObject {
         case "phone.connected":
             isPhoneConnected = true
             HapticManager.shared.play(.toggle)
-            NSLog("📡 NotchRelay: iPhone connected 📱")
+            log.info("iPhone connected 📱")
             
         case "phone.disconnected":
             isPhoneConnected = false
-            NSLog("📡 NotchRelay: iPhone disconnected")
+            log.info("iPhone disconnected")
             
         // ── Mode changes ──
         case "mode.change":
@@ -188,7 +190,7 @@ final class NotchRelay: ObservableObject {
                let mode = UserMode(rawValue: modeName) {
                 UserModeManager.shared.activeMode = mode
                 lastCommand = .modeChange(mode)
-                NSLog("📡 NotchRelay: Mode → \(modeName)")
+                log.info("Mode → \(modeName)")
             }
             
         // ── Music controls ──
@@ -235,10 +237,10 @@ final class NotchRelay: ObservableObject {
                 "intensity": intensity,
             ] as [String: Any])
             
-            NSLog("📡 Faro: \(message) → color: \(color)")
+            log.info("Faro: \(message) → color: \(color)")
             
         default:
-            NSLog("📡 NotchRelay: Unknown type: \(type)")
+            log.warning("Unknown type: \(type)")
         }
     }
     

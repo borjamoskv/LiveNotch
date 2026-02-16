@@ -11,6 +11,8 @@ import Combine
 import SwiftUI
 import AppKit
 
+private let log = NotchLog.make("YouTubeMusic")
+
 final class YouTubeMusicController: ObservableObject {
     // MARK: - Published Properties
     @Published var currentTrack: Track?
@@ -80,7 +82,7 @@ final class YouTubeMusicController: ObservableObject {
         } catch YouTubeMusicError.authenticationRequired {
             await authManager.invalidateToken()
         } catch {
-            print("[YouTubeMusicController] Failed to update playback info: \(error)")
+            log.error("Failed to update playback info: \(error)")
         }
     }
     
@@ -141,7 +143,7 @@ final class YouTubeMusicController: ObservableObject {
             await startPeriodicUpdates()
             await updatePlaybackInfo()
         } catch {
-            print("[YouTubeMusicController] Failed to initialize: \(error)")
+            log.error("Failed to initialize: \(error)")
             await scheduleReconnect()
         }
     }
@@ -168,7 +170,7 @@ final class YouTubeMusicController: ObservableObject {
             }
             reconnectDelay = configuration.reconnectDelay.lowerBound
         } catch {
-            print("[YouTubeMusicController] WebSocket connection failed: \(error)")
+            log.warning("WebSocket connection failed: \(error)")
             await scheduleReconnect()
         }
     }
@@ -259,7 +261,7 @@ final class YouTubeMusicController: ObservableObject {
         } catch YouTubeMusicError.authenticationRequired {
             await authManager.invalidateToken()
         } catch {
-            print("[YouTubeMusicController] Command failed: \(error)")
+            log.error("Command failed: \(error)")
         }
     }
     
@@ -298,7 +300,7 @@ final class YouTubeMusicController: ObservableObject {
                     }
                 }
             } catch {
-                print("[YouTubeMusicController] Failed to fetch artwork: \(error)")
+                log.warning("Failed to fetch artwork: \(error)")
             }
         }
     }
