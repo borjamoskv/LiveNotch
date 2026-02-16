@@ -76,9 +76,9 @@ final class GestureEyeEngine: NSObject, ObservableObject {
     // ── Published State ──
     // ── Persistent Config ──
     var isEnabled: Bool {
-        get { UserDefaults.standard.bool(forKey: "gestureEyeEnabled") }
+        get { NotchPersistence.shared.bool(.gestureEyeEnabled) }
         set { 
-            UserDefaults.standard.set(newValue, forKey: "gestureEyeEnabled") 
+            NotchPersistence.shared.set(.gestureEyeEnabled, value: newValue) 
             DispatchQueue.main.async { self.objectWillChange.send() }
         }
     }

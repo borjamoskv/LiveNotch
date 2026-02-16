@@ -10,8 +10,8 @@ final class HapticManager {
     static let shared = HapticManager()
     private init() {}
     
-    var isEnabled: Bool = UserDefaults.standard.object(forKey: "hapticEnabled") as? Bool ?? true {
-        didSet { UserDefaults.standard.set(isEnabled, forKey: "hapticEnabled") }
+    var isEnabled: Bool = NotchPersistence.shared.bool(.hapticEnabled, default: true) {
+        didSet { NotchPersistence.shared.set(.hapticEnabled, value: isEnabled) }
     }
     
     enum HapticType {

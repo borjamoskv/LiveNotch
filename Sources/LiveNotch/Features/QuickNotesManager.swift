@@ -97,22 +97,17 @@ final class QuickNotesManager: ObservableObject {
         saveTimer?.invalidate()
         saveTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { [weak self] _ in
             guard let self = self else { return }
-            if let data = try? JSONEncoder().encode(self.notes) {
-                UserDefaults.standard.set(data, forKey: self.storageKey)
-            }
+            NotchPersistence.shared.setCodable(.quickNotes, value: self.notes)
         }
     }
     
     private func saveNotesImmediately() {
         saveTimer?.invalidate()
-        if let data = try? JSONEncoder().encode(notes) {
-            UserDefaults.standard.set(data, forKey: storageKey)
-        }
+        NotchPersistence.shared.setCodable(.quickNotes, value: notes)
     }
     
     private func loadNotes() {
-        if let data = UserDefaults.standard.data(forKey: storageKey),
-           let decoded = try? JSONDecoder().decode([QuickNote].self, from: data) {
+        if let decoded = NotchPersistence.shared.getCodable(.quickNotes, as: [QuickNote].self) {
             notes = decoded
         }
     }

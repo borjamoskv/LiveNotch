@@ -17,13 +17,15 @@ final class LLMService: ObservableObject {
     
     // ── Configuration ──
     private let baseURL = "http://localhost:11434"
-    private let fastModel = "qwen2.5:3b"
-    private let deepModel = "deepseek-r1:7b"
     
-    enum ModelTier {
-        case fast   // Quick responses (qwen2.5:3b)
-        case deep   // Complex reasoning (deepseek-r1:7b)
-    }
+    // Dynamic Model State
+    @Published var availableModels: [String] = []
+    
+    // Preferred Model Order (Priority)
+    private let preferredModels = [
+        "deepseek-r1:7b", "deepseek-coder:6.7b", "qwen2.5:7b", "qwen2.5:3b",
+        "llama3", "mistral", "gemma:2b"
+    ]
     
     private init() {
         Task { await checkConnection() }
@@ -50,19 +52,26 @@ final class LLMService: ObservableObject {
             // Parse available models
             if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let models = json["models"] as? [[String: Any]] {
-                let modelNames = models.compactMap { $0["name"] as? String }
                 
-                // Prefer fast model, fall back to whatever's available
-                if modelNames.contains(where: { $0.contains("qwen") }) {
-                    activeModel = fastModel
-                } else if modelNames.contains(where: { $0.contains("deepseek") }) {
-                    activeModel = deepModel
-                } else if let first = modelNames.first {
-                    activeModel = first
+                // Extract and clean model names (remove :latest if present to match against prefixes if needed, but keeping full names is safer for API)
+                let modelNames = models.compactMap { $0["name"] as? String }
+                self.availableModels = modelNames
+                
+                // Select Best Model
+                if let bestMatch = preferredModels.first(where: { pref in modelNames.contains(where: { $0.contains(pref) }) }) {
+                    // Find the actual full name in the list that matches the preference
+                    self.activeModel = modelNames.first(where: { $0.contains(bestMatch) }) ?? modelNames.first ?? ""
+                } else {
+                    self.activeModel = modelNames.first ?? ""
                 }
                 
                 isConnected = !modelNames.isEmpty
-                NSLog("🧠 LLMService: Connected to Ollama — \(modelNames.count) models available, using \(activeModel)")
+                
+                if isConnected {
+                    NSLog("🧠 LLMService: Connected to Ollama — Active: \(activeModel) (Available: \(modelNames.count))")
+                } else {
+                    NSLog("🧠 LLMService: Connected to Ollama but NO models found.")
+                }
             }
         } catch {
             isConnected = false
@@ -78,17 +87,15 @@ final class LLMService: ObservableObject {
     func generate(
         prompt: String,
         systemPrompt: String = "",
-        tier: ModelTier = .fast,
         onPartial: @escaping (String) -> Void,
         onComplete: @escaping (String) -> Void
     ) async {
-        guard isConnected else {
+        guard isConnected, !activeModel.isEmpty else {
             onComplete("")
             return
         }
         
-        let model = tier == .fast ? fastModel : deepModel
-        if activeModel != model { activeModel = model }
+        let model = activeModel
         
         guard let url = URL(string: "\(baseURL)/api/generate") else {
             onComplete("")
@@ -173,7 +180,6 @@ final class LLMService: ObservableObject {
         await generate(
             prompt: prompt,
             systemPrompt: systemPrompt,
-            tier: .fast,
             onPartial: { _ in },
             onComplete: { result = $0 }
         )

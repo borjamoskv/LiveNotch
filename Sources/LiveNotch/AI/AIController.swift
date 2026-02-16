@@ -49,46 +49,20 @@ final class AIController: ObservableObject {
         let context = NervousSystem.shared.currentAIContext
         let llm = LLMService.shared
         
-        // Try real LLM first, fallback to templates
-        if llm.isConnected {
-            isLLMConnected = true
-            let systemPrompt = llm.buildSystemPrompt(
-                agentDomain: context,
-                sensorContext: "App: \(NervousSystem.shared.activeAppName), Mood: \(NervousSystem.shared.currentMood.rawValue)"
-            )
-            Task {
-                await llm.generate(
-                    prompt: prompt,
-                    systemPrompt: systemPrompt,
-                    tier: .fast,
-                    onPartial: { [weak self] partial in
-                        Task { @MainActor in
-                            self?.aiResponse = partial
-                            if partial.count % 3 == 0 { HapticManager.shared.play(.subtle) }
-                        }
-                    },
-                    onComplete: { [weak self] _ in
-                        Task { @MainActor in
-                            self?.aiIsThinking = false
-                        }
-                    }
-                )
-            }
-        } else {
-            // Fallback to template-based NotchIntelligence
-            isLLMConnected = false
-            NotchIntelligence.shared.process(query: prompt, context: context) { [weak self] partialResponse in
+        // Always use Swarm Intelligence (Deep Integration)
+        Task {
+            await NotchIntelligence.shared.process(query: prompt, context: context) { [weak self] partialResponse in
                 Task { @MainActor in
                     self?.aiResponse = partialResponse
                     if partialResponse.count % 3 == 0 { HapticManager.shared.play(.subtle) }
                 }
             }
-            
-            NotchIntelligence.shared.$isThinking
-                .receive(on: DispatchQueue.main)
-                .assign(to: \.aiIsThinking, on: self)
-                .store(in: &cancellables)
         }
+        
+        NotchIntelligence.shared.$isThinking
+            .receive(on: DispatchQueue.main)
+            .assign(to: \.aiIsThinking, on: self)
+            .store(in: &cancellables)
     }
     
     /// Process clipboard content with AI context
@@ -99,9 +73,11 @@ final class AIController: ObservableObject {
         let context = NervousSystem.shared.currentAIContext
         let fullPrompt = "Context: \(context)\n\nClipboard Content: \(text)\n\nExplain this."
         
-        NotchIntelligence.shared.process(query: fullPrompt, context: context) { [weak self] partial in
-            Task { @MainActor in
-                self?.aiResponse = partial
+        Task {
+            await NotchIntelligence.shared.process(query: fullPrompt, context: context) { [weak self] partial in
+                Task { @MainActor in
+                    self?.aiResponse = partial
+                }
             }
         }
          

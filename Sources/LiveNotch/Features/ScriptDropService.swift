@@ -440,14 +440,11 @@ final class ScriptDropService: ObservableObject {
     }
     
     private func saveHistory() {
-        if let data = try? JSONEncoder().encode(history) {
-            UserDefaults.standard.set(data, forKey: historyKey)
-        }
+        NotchPersistence.shared.setCodable(.scriptHistory, value: history)
     }
     
     private func loadHistory() {
-        guard let data = UserDefaults.standard.data(forKey: historyKey),
-              let loaded = try? JSONDecoder().decode([ScriptRecord].self, from: data) else { return }
+        guard let loaded = NotchPersistence.shared.getCodable(.scriptHistory, as: [ScriptRecord].self) else { return }
         history = loaded
     }
     

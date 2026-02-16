@@ -13,6 +13,11 @@ float sdRoundedBox(float2 p, float2 b, float4 r) {
     return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r.x;
 }
 
+// Simple Hash for Grain
+float hash(float2 p) {
+    return fract(sin(dot(p, float2(12.9898, 78.233))) * 43758.5453);
+}
+
 // Circle SDF
 float sdCircle(float2 p, float r) {
     return length(p) - r;
@@ -83,7 +88,25 @@ float smin(float d1, float d2, float k) {
     
     // Combine: base color + micro-glossy highlights (DEEP BLACK dominant)
     float gloss = (topShine + centerGloss + bottomAmbient) * alpha;
-    half3 finalColor = activeColor.rgb + half3(gloss, gloss, gloss);
+    
+    // ── Industrial Noir Grain ──
+    float grain = (hash(position + float2(1.0, 1.0)) - 0.5) * 0.012; // Static organic grain
+    
+    half3 finalColor = activeColor.rgb + half3(gloss + grain, gloss + grain, gloss + grain);
     
     return half4(finalColor, alpha * activeColor.a);
+}
+
+// ── Chromatic Aberration (Thinking Mode) ──
+[[ stitchable ]] half4 chromaticAberration(
+    float2 position,
+    SwiftUI::Layer layer,
+    float strength
+) {
+    float2 offset = float2(strength, 0);
+    half r = layer.sample(position - offset).r;
+    half g = layer.sample(position).g;
+    half b = layer.sample(position + offset).b;
+    half a = layer.sample(position).a;
+    return half4(r, g, b, a);
 }

@@ -81,8 +81,8 @@ class NotchViewModel: ObservableObject {
     @Published var isChronosActive: Bool = false // Focus Timer Mode
     
     // ── Liquid Glass ──
-    @Published var isLiquidGlassEnabled: Bool = UserDefaults.standard.bool(forKey: "liquidGlass") {
-        didSet { UserDefaults.standard.set(isLiquidGlassEnabled, forKey: "liquidGlass") }
+    @Published var isLiquidGlassEnabled: Bool = NotchPersistence.shared.bool(.liquidGlass) {
+        didSet { NotchPersistence.shared.set(.liquidGlass, value: isLiquidGlassEnabled) }
     }
     
     // ── Status Messages ──

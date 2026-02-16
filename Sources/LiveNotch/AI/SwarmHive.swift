@@ -826,11 +826,17 @@ final class SwarmHive: ObservableObject {
 
     /// Spawn a swarm of micro-agents, evaluate, and reach consensus.
     /// This is the main entry point for query processing.
+    /// Orchestrates the execution of multiple specialized agents to reach a consensus.
+    /// - Parameters:
+    ///   - query: The user's intent.
+    ///   - sensors: Real-time environmental and clipboard data.
+    ///   - memory: The current conversation state.
+    /// - Returns: A consensus result containing the winning response and metadata.
     func swarmProcess(
         query: String,
         sensors: SensorFusion,
         memory: ConversationMemory
-    ) -> SwarmConsensusResult {
+    ) async -> SwarmConsensusResult {
 
         let startTime = CFAbsoluteTimeGetCurrent()
         contextMesh.ingest(query: query, sensors: sensors)
@@ -852,7 +858,7 @@ final class SwarmHive: ObservableObject {
         for legacyAgent in legacyBridge {
             let conf = legacyAgent.confidence(for: query, context: sensors)
             if conf > confidenceThreshold {
-                let response = legacyAgent.respond(to: query, context: sensors, memory: memory)
+                let response = await legacyAgent.respond(to: query, context: sensors, memory: memory)
                 var micro = MicroAgent(dna: AgentDNA(
                     id: UUID(), species: "legacy.\(legacyAgent.name.lowercased())",
                     emoji: legacyAgent.emoji, domain: legacyAgent.domain,
@@ -873,7 +879,7 @@ final class SwarmHive: ObservableObject {
         var respondedAgents: [MicroAgent] = []
         for var agent in topAgents {
             if agent.response.isEmpty {
-                agent.response = generateResponse(for: agent, query: query, sensors: sensors, memory: memory)
+                agent.response = await generateResponse(for: agent, query: query, sensors: sensors, memory: memory)
             }
             agent.processingTimeMs = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
             respondedAgents.append(agent)
@@ -917,7 +923,7 @@ final class SwarmHive: ObservableObject {
         }
 
         // Update published state
-        DispatchQueue.main.async {
+        await MainActor.run { [swarm, result] in
             self.lastSwarmSize = swarm.count
             self.lastConsensus = result.protocol
             self.activeSpecies = result.breakdown.prefix(5).map { $0.species }
@@ -942,7 +948,7 @@ final class SwarmHive: ObservableObject {
         query: String,
         sensors: SensorFusion,
         memory: ConversationMemory
-    ) -> String {
+    ) async -> String {
         let species = agent.dna.species
         let domain = agent.dna.domain
         let emoji = agent.dna.emoji

@@ -155,7 +155,8 @@ final class DevCockpit: ObservableObject {
     
     // RescueTime
     private var rescueTimeKey: String? {
-        UserDefaults.standard.string(forKey: "notch.rescuetime.api_key")
+        let key = NotchPersistence.shared.string(.rescueTimeApiKey)
+        return key.isEmpty ? nil : key
     }
     
     private init() {}

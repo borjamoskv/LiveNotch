@@ -55,11 +55,12 @@ final class AppExclusionManager: ObservableObject {
     }
     
     private func saveExclusions() {
-        UserDefaults.standard.set(Array(excludedBundleIDs), forKey: saveKey)
+        NotchPersistence.shared.set(.excludedApps, value: Array(excludedBundleIDs))
     }
     
     private func loadExclusions() {
-        if let saved = UserDefaults.standard.stringArray(forKey: saveKey) {
+        let saved = NotchPersistence.shared.stringArray(.excludedApps)
+        if !saved.isEmpty {
             excludedBundleIDs = Set(saved)
         }
     }

@@ -75,11 +75,12 @@ final class QuickLaunchService: ObservableObject {
     
     private func savePinnedApps() {
         let ids = pinnedApps.map { $0.bundleID }
-        UserDefaults.standard.set(ids, forKey: pinnedKey)
+        NotchPersistence.shared.set(.pinnedApps, value: ids)
     }
     
     private func loadPinnedApps() {
-        guard let ids = UserDefaults.standard.stringArray(forKey: pinnedKey) else {
+        let ids = NotchPersistence.shared.stringArray(.pinnedApps)
+        if ids.isEmpty {
             // Default pinned apps
             let defaults = ["com.apple.Safari", "com.apple.mail", "com.apple.Terminal", "com.apple.finder"]
             loadApps(from: defaults)

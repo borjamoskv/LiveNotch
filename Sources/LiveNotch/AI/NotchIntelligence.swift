@@ -39,7 +39,7 @@ protocol NotchAgent {
     func confidence(for query: String, context: SensorFusion) -> Double
     
     /// Generate a response
-    func respond(to query: String, context: SensorFusion, memory: ConversationMemory) -> AgentResponse
+    func respond(to query: String, context: SensorFusion, memory: ConversationMemory) async -> AgentResponse
 }
 
 struct AgentResponse {
@@ -189,7 +189,7 @@ class ConversationMemory {
         DispatchQueue.global(qos: .background).async {
             do {
                 let data = try JSONEncoder().encode(self.exchanges)
-                try data.write(to: self.cortexPath)
+                try data.write(to: self.cortexPath, options: .atomic)
             } catch {
                 NSLog("🧠 Cortex Memory Save Failed: %@", error.localizedDescription)
             }
@@ -252,7 +252,7 @@ struct ArchitectAgent: NotchAgent {
         return min(1.0, score)
     }
     
-    func respond(to query: String, context: SensorFusion, memory: ConversationMemory) -> AgentResponse {
+    func respond(to query: String, context: SensorFusion, memory: ConversationMemory) async -> AgentResponse {
         let lowered = query.lowercased()
         let mode = ContextMesh.shared.cachedUserMode
         let isConcise = (mode == .focus || mode == .producer)
@@ -267,8 +267,10 @@ struct ArchitectAgent: NotchAgent {
         // 1. Analyze Clipboard Code
         var clipboardAnalysis = ""
         var detectedLang = "Generic"
+        var codeContent = ""
         
         if let clip = context.clipboardContent, clip.count > 10 {
+            codeContent = clip
             let (lang, issues) = analyzeCodeblock(clip)
             detectedLang = lang
             if !issues.isEmpty {
@@ -276,15 +278,39 @@ struct ArchitectAgent: NotchAgent {
             }
         }
         
-        // 2. Identify Intent & Build Response
+        // 2. Intent Routing & LLM Integration
         if lowered.contains("refactor") || lowered.contains("optimize") || lowered.contains("clean") {
             response += "\n\n**Estrategia de Optimización (\(detectedLang)):**"
-            response += getOptimizationTips(for: detectedLang, concise: isConcise)
+            
+            // LLM Upgrade: Use LLM for Refactoring if code is present
+            if !codeContent.isEmpty {
+                let prompt = "Refactor this \(detectedLang) code for performance and readability. Be concise. \n\nCode:\n\(codeContent)"
+                let llmResponse = await LLMService.shared.quickGenerate(prompt: prompt, systemPrompt: "You are a Senior Software Architect. Refactor code aggressively.")
+                if !llmResponse.isEmpty {
+                     response += "\n\n" + llmResponse
+                } else {
+                     response += getOptimizationTips(for: detectedLang, concise: isConcise)
+                }
+            } else {
+                 response += getOptimizationTips(for: detectedLang, concise: isConcise)
+            }
             response += clipboardAnalysis
             
         } else if lowered.contains("fix") || lowered.contains("error") || lowered.contains("crash") || lowered.contains("bug") {
             response += "\n\n**Protocolo de Diagnóstico:**"
-            response += getDebugSteps(for: detectedLang, concise: isConcise)
+            
+             // LLM Upgrade: Debugging
+            if !codeContent.isEmpty {
+                let prompt = "Fix this \(detectedLang) code. Explain the bug briefly. \n\nCode:\n\(codeContent)"
+                let llmResponse = await LLMService.shared.quickGenerate(prompt: prompt, systemPrompt: "You are a Senior Debugger. Fix bugs.")
+                if !llmResponse.isEmpty {
+                     response += "\n\n" + llmResponse
+                } else {
+                     response += getDebugSteps(for: detectedLang, concise: isConcise)
+                }
+            } else {
+                response += getDebugSteps(for: detectedLang, concise: isConcise)
+            }
             response += clipboardAnalysis
             
         } else if lowered.contains("architecture") || lowered.contains("design") || lowered.contains("pattern") {
@@ -418,7 +444,7 @@ struct MuseAgent: NotchAgent {
         return min(1.0, score)
     }
     
-    func respond(to query: String, context: SensorFusion, memory: ConversationMemory) -> AgentResponse {
+    func respond(to query: String, context: SensorFusion, memory: ConversationMemory) async -> AgentResponse {
         let lowered = query.lowercased()
         let mode = ContextMesh.shared.cachedUserMode
         let isTechnical = (mode == .producer || mode == .dj)
@@ -436,11 +462,20 @@ struct MuseAgent: NotchAgent {
             response += generatePalette(baseHex: hexColor)
         }
         
-        // 2. Intent Routing
+        // 2. Intent Routing & LLM Integration
         if lowered.contains("midjourney") || lowered.contains("prompt") || lowered.contains("imagine") {
             response += "\n\n**Generando Prompt Visual:**"
             let subject = extractSubject(from: query)
-            response += generateMidjourneyPrompt(subject: subject, style: isTechnical ? "photoreal" : "artistic")
+            
+            // LLM Upgrade: Enhanced Prompt Generation
+            let llmPrompt = "Create a detailed Midjourney v6 prompt for: '\(subject)'. Style: \(isTechnical ? "photorealistic, cinematic" : "digital art, creative"). Just return the prompt text, no filler."
+            let llmResponse = await LLMService.shared.quickGenerate(prompt: llmPrompt, systemPrompt: "You are a Midjourney Prompt Expert.")
+            
+            if !llmResponse.isEmpty {
+                 response += "\n\n`" + llmResponse + " --v 6.1`"
+            } else {
+                 response += generateMidjourneyPrompt(subject: subject, style: isTechnical ? "photoreal" : "artistic")
+            }
             
         } else if lowered.contains("color") || lowered.contains("palette") || lowered.contains("aesthetic") {
             response += "\n\n**Curación Estética:**"
@@ -450,7 +485,16 @@ struct MuseAgent: NotchAgent {
             
         } else if lowered.contains("suno") || lowered.contains("music") || lowered.contains("song") || lowered.contains("chord") {
             response += "\n\n**Teoría Musical & Producción:**"
-            response += getMusicAdvice(query: lowered, isTechnical: isTechnical)
+            
+            // LLM Upgrade: Music Theory
+            let llmPrompt = "Give music theory advice for: '\(query)'. Technical level: \(isTechnical ? "High" : "Low")."
+            let llmResponse = await LLMService.shared.quickGenerate(prompt: llmPrompt, systemPrompt: "You are a Music Producer/Theorist. Be concise.")
+            
+            if !llmResponse.isEmpty {
+                response += "\n\n" + llmResponse
+            } else {
+                response += getMusicAdvice(query: lowered, isTechnical: isTechnical)
+            }
             
         } else {
             response += "\n\n**Motores Creativos Listos.**"
@@ -542,7 +586,7 @@ struct AnalystAgent: NotchAgent {
         return min(1.0, score)
     }
     
-    func respond(to query: String, context: SensorFusion, memory: ConversationMemory) -> AgentResponse {
+    func respond(to query: String, context: SensorFusion, memory: ConversationMemory) async -> AgentResponse {
         let lowered = query.lowercased()
         var response = "🔬 **Analyst Report:**"
         
@@ -564,24 +608,42 @@ struct AnalystAgent: NotchAgent {
             }
         }
         
-        // 2. Intent Routing
+        // 2. Intent Routing & LLM Integration
         if lowered.contains("summarize") || lowered.contains("tldr") || lowered.contains("resumen") {
             let clip = context.clipboardContent ?? ""
             if clip.isEmpty {
                 response += "\n\n*Clipboard empty. Copy text to summarize.*"
             } else {
                 response += "\n\n**Executive Summary:**"
-                response += generateExtractiveSummary(text: clip)
+                
+                // LLM Upgrade: Summarization
+                let prompt = "Summarize this text in 3 bullet points. Be concise.\n\nText:\n\(clip)"
+                let llmResponse = await LLMService.shared.quickGenerate(prompt: prompt, systemPrompt: "You are a Senior Data Analyst.")
+                
+                if !llmResponse.isEmpty {
+                     response += "\n\n" + llmResponse
+                } else {
+                     response += generateExtractiveSummary(text: clip)
+                }
             }
             
         } else if lowered.contains("compare") || lowered.contains("vs") || lowered.contains("versus") {
             let items = extractComparisonItems(query: query)
             response += "\n\n**Comparative Matrix (\(items.0) vs \(items.1)):**"
-            response += "\n\n| Feature | \(items.0) | \(items.1) |"
-            response += "\n|---------|:---:|:---:|"
-            response += "\n| Use Case | ? | ? |"
-            response += "\n| Cost | ? | ? |"
-            response += "\n| Maturity | ? | ? |"
+            
+            // LLM Upgrade: Comparison
+            let prompt = "Compare '\(items.0)' vs '\(items.1)'. format as a markdown table with columns: Feature, \(items.0), \(items.1)."
+            let llmResponse = await LLMService.shared.quickGenerate(prompt: prompt, systemPrompt: "You are a Research Analyst.")
+            
+             if !llmResponse.isEmpty {
+                 response += "\n\n" + llmResponse
+             } else {
+                response += "\n\n| Feature | \(items.0) | \(items.1) |"
+                response += "\n|---------|:---:|:---:|"
+                response += "\n| Use Case | ? | ? |"
+                response += "\n| Cost | ? | ? |"
+                response += "\n| Maturity | ? | ? |"
+             }
             
         } else if !response.contains("JSON") && !response.contains("CSV") {
             response += "\n\n**Data Tools Ready.**"
@@ -703,7 +765,7 @@ struct SentinelAgent: NotchAgent {
         return min(1.0, score)
     }
     
-    func respond(to query: String, context: SensorFusion, memory: ConversationMemory) -> AgentResponse {
+    func respond(to query: String, context: SensorFusion, memory: ConversationMemory) async -> AgentResponse {
         // Proactive: Check clipboard for secrets
         var secretsDetected: [String] = []
         if let clip = context.clipboardContent {
@@ -787,7 +849,7 @@ struct EmpathAgent: NotchAgent {
         return min(1.0, score)
     }
     
-    func respond(to query: String, context: SensorFusion, memory: ConversationMemory) -> AgentResponse {
+    func respond(to query: String, context: SensorFusion, memory: ConversationMemory) async -> AgentResponse {
         // Dynamic Time Greeting
         let timeGreeting = getTimeGreeting(for: context.timeOfDay)
         
@@ -867,7 +929,7 @@ struct OrchestratorAgent: NotchAgent {
         return min(1.0, score)
     }
     
-    func respond(to query: String, context: SensorFusion, memory: ConversationMemory) -> AgentResponse {
+    func respond(to query: String, context: SensorFusion, memory: ConversationMemory) async -> AgentResponse {
         // Workflow delegation — handled by SwarmCoordinator
         return AgentResponse(
             text: "Workflow routing...",
@@ -963,7 +1025,12 @@ final class NotchIntelligence: ObservableObject {
     // MARK: - Main Processing Pipeline
     // ════════════════════════════════════════
     
-    func process(query: String, context: String, onStream: @escaping (String) -> Void) {
+    /// Processes a user query through the Swarm Intelligence router.
+    /// - Parameters:
+    ///   - query: The natural language query from the user.
+    ///   - context: Additional application context or clipboard state.
+    ///   - onStream: Callback for partial/streaming response delivery.
+    func process(query: String, context: String, onStream: @escaping (String) -> Void) async {
         // 🔮 Psionic Command Interceptor
         if query.starts(with: "/") {
             handleCommand(query, onStream: onStream)
@@ -971,40 +1038,73 @@ final class NotchIntelligence: ObservableObject {
         }
     
         guard !isThinking else { return }
-        isThinking = true
-        processingStage = "Analyzing..."
         
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            guard let self = self else { return }
-            
-            // 1. Capture full sensor state
-            let sensors = SensorFusion.capture()
-            
-            // 2. Check for workflow commands first
-            let lowered = query.lowercased()
-            if lowered.contains("flujo glorioso") || lowered.contains("glorious flow") || lowered.contains("genesis") || lowered.contains("iniciar flujo") {
-                self.startGloriousFlow(onStream: onStream)
-                return
+        await MainActor.run {
+            isThinking = true
+            processingStage = "Analyzing..."
+        }
+        
+        // 1. Capture full sensor state
+        let sensors = SensorFusion.capture()
+        
+        // 2. Check for workflow commands first
+        let lowered = query.lowercased()
+        if lowered.contains("flujo glorioso") || lowered.contains("glorious flow") || lowered.contains("genesis") || lowered.contains("iniciar flujo") {
+            startGloriousFlow(onStream: onStream)
+            return
+        }
+        
+        // 3. Router: Find the Best Agent
+        // Evaluate all agents in parallel or sequential
+        var bestAgent: NotchAgent?
+        var bestConfidence = 0.0
+        
+        for agent in agents {
+            let score = agent.confidence(for: query, context: sensors)
+            if score > bestConfidence {
+                bestConfidence = score
+                bestAgent = agent
+            }
+        }
+        
+        // 4. Execution
+        if let winner = bestAgent, bestConfidence > 0.3 {
+            await MainActor.run {
+                activeAgentName = winner.name
+                activeAgentEmoji = winner.emoji
+                processingStage = "\(winner.name) Working..."
             }
             
-            // 3. Cortex Recall (Auto-load memory context)
-            // ...
+            // Invoke the Agent (Async/LLM capable)
+            let response = await winner.respond(to: query, context: sensors, memory: memory)
             
-            // 4. Analysis & Hive Processing using Centauro Protocol
-            self.streamOnMain("🐝 **Swarm Consensus:** Analyzing request...", onStream: onStream)
+            // Stream the Result
+            memory.add(query: query, response: response.text, agent: winner.name)
+            streamOnMain(response.text, onStream: onStream)
             
-            let result = self.hive.swarmProcess(query: query, sensors: sensors, memory: self.memory)
-            
-            if !result.finalResponse.isEmpty {
-                 self.memory.add(query: query, response: result.finalResponse, agent: result.winningAgent)
-                 self.streamOnMain(result.finalResponse, onStream: onStream)
-            } else {
-                 self.streamOnMain("⚠️ Swarm disconnected. Please restart synapse.", onStream: onStream)
+            // Handle Actions
+            if response.suggestedAction != nil {
+                // handle suggested action (TODO)
             }
+            
+        } else {
+            // Fallback to SwarmHive (Legacy/General) if no specialist is confident
+            await MainActor.run {
+                 streamOnMain("⚠️ Swarm disconnected. Please restart synapse.", onStream: onStream)
+            }
+        }
+        
+        await MainActor.run {
+            isThinking = false
+            processingStage = "Idle"
         }
     }
     
     // ── Command Handler ──
+    /// Intercepts and executes slash commands and creative workflows.
+    /// - Parameters:
+    ///   - command: The raw command string starting with '/'.
+    ///   - onStream: Callback for command output.
     private func handleCommand(_ command: String, onStream: @escaping (String) -> Void) {
         let parts = command.dropFirst().split(separator: " ")
         guard let cmd = parts.first else { return }

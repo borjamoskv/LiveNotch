@@ -131,14 +131,11 @@ class VaultService: ObservableObject {
     }
     
     private func saveItems() {
-        if let encoded = try? JSONEncoder().encode(vaultItems) {
-            UserDefaults.standard.set(encoded, forKey: storageKey)
-        }
+        NotchPersistence.shared.setCodable(.vaultItems, value: vaultItems)
     }
     
     private func loadItems() {
-        if let data = UserDefaults.standard.data(forKey: storageKey),
-           let decoded = try? JSONDecoder().decode([VaultItem].self, from: data) {
+        if let decoded = NotchPersistence.shared.getCodable(.vaultItems, as: [VaultItem].self) {
             vaultItems = decoded
         }
     }

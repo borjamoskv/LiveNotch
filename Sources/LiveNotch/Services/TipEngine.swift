@@ -144,26 +144,25 @@ final class TipEngine: ObservableObject {
     // ════════════════════════════════════════
     
     private func seenTipIDs() -> Set<String> {
-        let array = UserDefaults.standard.stringArray(forKey: seenTipsKey) ?? []
-        return Set(array)
+        Set(NotchPersistence.shared.stringArray(.seenTipIDs))
     }
     
     private func markAsSeen(_ tipID: String) {
         var seen = seenTipIDs()
         seen.insert(tipID)
-        UserDefaults.standard.set(Array(seen), forKey: seenTipsKey)
+        NotchPersistence.shared.set(.seenTipIDs, value: Array(seen))
     }
     
     private func clearSeenTips(for bundleID: String) {
         let allTipIDs = Set((tipDatabase[bundleID] ?? []).map(\.id))
         var seen = seenTipIDs()
         seen.subtract(allTipIDs)
-        UserDefaults.standard.set(Array(seen), forKey: seenTipsKey)
+        NotchPersistence.shared.set(.seenTipIDs, value: Array(seen))
     }
     
     /// Reset all seen tips (for settings / debug)
     func resetAllSeenTips() {
-        UserDefaults.standard.removeObject(forKey: seenTipsKey)
+        NotchPersistence.shared.set(.seenTipIDs, value: nil)
     }
     
     // ════════════════════════════════════════

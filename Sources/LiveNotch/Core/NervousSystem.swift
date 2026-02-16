@@ -38,10 +38,11 @@ final class NervousSystem: ObservableObject {
     @Published var smartIcon: String = "bolt.fill"
     @Published var isMeetingActive: Bool = false
     @Published var meetingDuration: TimeInterval = 0
+    @Published var isThinkingAI: Bool = false
     
     // 🦎 App Chameleon State
-    @Published var chameleonEnabled: Bool = UserDefaults.standard.object(forKey: "chameleonEnabled") == nil ? true : UserDefaults.standard.bool(forKey: "chameleonEnabled") {
-        didSet { UserDefaults.standard.set(chameleonEnabled, forKey: "chameleonEnabled") }
+    @Published var chameleonEnabled: Bool = NotchPersistence.shared.bool(.chameleonEnabled, default: true) {
+        didSet { NotchPersistence.shared.set(.chameleonEnabled, value: chameleonEnabled) }
     }
     @Published var activeAppBundleID: String = ""
     @Published var activeAppName: String = ""
@@ -129,6 +130,16 @@ final class NervousSystem: ObservableObject {
         
         NSLog("🧠 NervousSystem: calling setupGestureEye...")
         setupGestureEye()
+        
+        // 🔮 Sync with Notch Intelligence (Thinking State)
+        NotchIntelligence.shared.$isThinking
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] thinking in
+                self?.isThinkingAI = thinking
+                self?.evaluateMood()
+            }
+            .store(in: &cancellables)
+            
         NSLog("🧠 NervousSystem: init COMPLETE")
     }
     
@@ -187,6 +198,8 @@ final class NervousSystem: ObservableObject {
         } else if switchRate < 2 && cpu < 30 {
             let hasRecentInput = switchRate > 0
             newMood = hasRecentInput ? .focus : .idle
+        } else if isThinkingAI {
+            newMood = .active // We'll boost intensity in active or create a sub-state
         } else {
             newMood = .active
         }
@@ -258,6 +271,13 @@ final class NervousSystem: ObservableObject {
                 breathIntensity = 0.15
                 smartAction = .showMeeting
                 smartIcon = "video.fill"
+            }
+            
+            // ── AI Thinking Override (Top Priority for Visuals) ──
+            if isThinkingAI {
+                breathRate = 0.8
+                breathIntensity = 0.15
+                moodColor = Color.cyan.opacity(0.6) // Psionic blue
             }
             
             // 🌅 Time-of-day color temperature overlay

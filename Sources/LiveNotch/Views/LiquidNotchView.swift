@@ -46,6 +46,16 @@ struct LiquidNotchView: View {
                             maxSampleOffset: .zero
                         )
                 }
+                .visualEffect { content, proxy in
+                    let strength: Float = NotchIntelligence.shared.isThinking ? 1.5 : 0.0
+                    return content
+                        .layerEffect(
+                            ShaderLibrary.chromaticAberration(
+                                .float(strength)
+                            ),
+                            maxSampleOffset: .zero
+                        )
+                }
         )
         .onContinuousHover { phase in
             switch phase {
@@ -70,4 +80,5 @@ struct LiquidNotchView: View {
 // Extension to safely load the shader
 extension ShaderLibrary {
     static let liquidNotch = ShaderLibrary.default.liquidNotch
+    static let chromaticAberration = ShaderLibrary.default.chromaticAberration
 }

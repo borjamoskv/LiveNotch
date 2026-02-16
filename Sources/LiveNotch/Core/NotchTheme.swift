@@ -182,12 +182,12 @@ final class ThemeEngine: ObservableObject {
     
     @Published var activeTheme: NotchTheme {
         didSet {
-            UserDefaults.standard.set(activeTheme.rawValue, forKey: "notchTheme")
+            NotchPersistence.shared.set(.notchTheme, value: activeTheme.rawValue)
         }
     }
     
     private init() {
-        let saved = UserDefaults.standard.string(forKey: "notchTheme") ?? "txalaparta"
+        let saved = NotchPersistence.shared.string(.notchTheme, default: "txalaparta")
         self.activeTheme = NotchTheme(rawValue: saved) ?? .txalaparta
     }
     

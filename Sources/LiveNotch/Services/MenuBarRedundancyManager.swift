@@ -148,11 +148,12 @@ final class MenuBarRedundancyManager: ObservableObject {
             "wifi": managingWiFi,
             "clock": managingClock
         ]
-        UserDefaults.standard.set(prefs, forKey: saveKey)
+        NotchPersistence.shared.set(.menuBarRedundancies, value: prefs)
     }
     
     private func loadPreferences() {
-        guard let prefs = UserDefaults.standard.dictionary(forKey: saveKey) as? [String: Bool] else { return }
+        let prefs = NotchPersistence.shared.boolDict(.menuBarRedundancies)
+        guard !prefs.isEmpty else { return }
         managingBattery = prefs["battery"] ?? false
         managingBluetooth = prefs["bluetooth"] ?? false
         managingVolume = prefs["volume"] ?? false

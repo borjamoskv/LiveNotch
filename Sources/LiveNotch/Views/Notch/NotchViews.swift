@@ -83,6 +83,11 @@ struct NotchView: View {
                     // ═══ EXPANDED: Unified single shape ═══
                     unifiedExpandedView()
                         .onHover { hovering in handleHover(hovering) }
+                        .rotation3DEffect(
+                            .degrees(isAnyPanelActive ? 0 : -35),
+                            axis: (x: 1, y: 0, z: 0),
+                            anchor: .top
+                        )
                         .transition(.asymmetric(
                             insertion: .opacity.combined(with: .scale(scale: 0.96, anchor: .top)),
                             removal: .opacity.combined(with: .scale(scale: 0.98, anchor: .top))
@@ -596,8 +601,19 @@ struct NotchView: View {
                         colors: [viewModel.albumColor.opacity(0.12), viewModel.albumColor2.opacity(0.06), viewModel.albumColor.opacity(0.03)],
                         center: .center
                       ))
-                    : AnyShapeStyle(DS.Colors.yinmnBlue.opacity(0.08)), // YInMn Blue idle glow
-                lineWidth: viewModel.isPlaying ? 0.6 : 0.4  // Thinner = more premium
+                    : AnyShapeStyle(
+                        LinearGradient(
+                            colors: [
+                                .white.opacity(0.15),
+                                .white.opacity(0.05),
+                                .white.opacity(0.12),
+                                .white.opacity(0.02)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                      ),
+                lineWidth: 0.6
             )
             .mask(
                 VStack(spacing: 0) {

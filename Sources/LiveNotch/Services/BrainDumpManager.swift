@@ -186,14 +186,11 @@ final class BrainDumpManager: ObservableObject {
     
     // ── Persistence ──
     private func saveItems() {
-        if let data = try? JSONEncoder().encode(items) {
-            UserDefaults.standard.set(data, forKey: saveKey)
-        }
+        NotchPersistence.shared.setCodable(.brainDumpItems, value: items)
     }
     
     private func loadItems() {
-        if let data = UserDefaults.standard.data(forKey: saveKey),
-           let decoded = try? JSONDecoder().decode([BrainItem].self, from: data) {
+        if let decoded = NotchPersistence.shared.getCodable(.brainDumpItems, as: [BrainItem].self) {
             items = decoded
         }
     }

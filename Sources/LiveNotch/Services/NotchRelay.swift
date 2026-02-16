@@ -38,7 +38,7 @@ final class NotchRelay: ObservableObject {
     
     // ── Config ──
     var baseURL: String = "https://api.moskv.com" {
-        didSet { UserDefaults.standard.set(baseURL, forKey: "notch.relay.base_url") }
+        didSet { NotchPersistence.shared.set(.relayBaseURL, value: baseURL) }
     }
     private var deviceToken: String = ""
     private var apiKey: String = ""
@@ -325,25 +325,28 @@ final class NotchRelay: ObservableObject {
     // ════════════════════════════════════════
     
     private func loadCredentials() {
-        if let url = UserDefaults.standard.string(forKey: "notch.relay.base_url"), !url.isEmpty {
-            baseURL = url
+        let stored = NotchPersistence.shared.string(.relayBaseURL)
+        if !stored.isEmpty {
+            baseURL = stored
         }
         
-        if let existing = UserDefaults.standard.string(forKey: "notch.relay.device_token") {
-            deviceToken = existing
+        let existingToken = NotchPersistence.shared.string(.relayDeviceToken)
+        if !existingToken.isEmpty {
+            deviceToken = existingToken
         } else {
             deviceToken = UUID().uuidString
-            UserDefaults.standard.set(deviceToken, forKey: "notch.relay.device_token")
+            NotchPersistence.shared.set(.relayDeviceToken, value: deviceToken)
         }
         
-        if let key = UserDefaults.standard.string(forKey: "notch.relay.api_key") {
-            apiKey = key
+        let storedKey = NotchPersistence.shared.string(.relayApiKey)
+        if !storedKey.isEmpty {
+            apiKey = storedKey
         }
     }
     
     func savePairing(apiKey: String) {
         self.apiKey = apiKey
-        UserDefaults.standard.set(apiKey, forKey: "notch.relay.api_key")
+        NotchPersistence.shared.set(.relayApiKey, value: apiKey)
     }
 }
 
