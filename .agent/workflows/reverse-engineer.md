@@ -2,7 +2,7 @@
 description: DISEKTV-1 — Protocolo soberano de ingeniería inversa ética. Diseccionar apps, APIs, protocolos y codebases en intelligence accionable.
 ---
 
-# 🔬 DISEKTV-1 v2.0: Quick Reference
+# 🔬 DISEKTV-1 v3.0: Quick Reference
 
 > Full spec: `~/.gemini/antigravity/skills/reverse-engineer/SKILL.md`
 
@@ -10,9 +10,10 @@ description: DISEKTV-1 — Protocolo soberano de ingeniería inversa ética. Dis
 
 ## 1. Snapshot Primero (SIEMPRE)
 
-```
+```bash
 disekt-snapshot [target]
 ```
+
 - [ ] Verificar licencia → CLEAR / RESTRICTED
 - [ ] Clasificar T-level (T1 Surface → T4 Abyss)
 - [ ] Detectar stack con confidence [C1-C5]
@@ -38,29 +39,52 @@ disekt-snapshot [target]
 | C2 | 🟠 | Especulativo (indicios débiles) |
 | C1 | 🔴 | Hipótesis pura (sin evidencia) |
 
-## 4. Signal Detection (buscar siempre primero)
+## 4. 3B Decisions (después de analizar)
 
-```
-→ Error messages → stack, DB, framework
-→ HTTP headers → Server, X-Powered-By
-→ URL patterns → REST conventions, ID format
-→ Auth tokens → JWT dots, API key hex
-→ Naming → camelCase=JS, snake_case=Python
-→ Loading skeletons → component structure
-→ Analytics events → feature names + user flows
-```
+| Decisión | Cuándo |
+|:---|:---|
+| 🔨 **BUILD** | Feature diferenciadora, puedo hacerlo mejor |
+| 🔗 **BRIDGE** | Commodity, hay SDK/API estable |
+| 💡 **BYPASS** | Puedo diseñar alternativa superior |
+| ⏭ **SKIP** | No aporta valor |
 
-## 5. Power Moves
+> **Regla**: ≥60% BRIDGE/SKIP. Si haces BUILD en todo, estás clonando.
+
+## 5. DQS — Calidad del Report
+
+| Score | Nivel | Acción |
+|:---:|:---|:---|
+| 8-10 🟢 | Soberano | Listo para 3B decisions |
+| 5-7 🟡 | Incompleto | Iterar (focused deep-dive) |
+| 1-4 🔴 | Insuficiente | Re-ejecutar o escalar a Swarm |
+
+**Max 3 passes.** Si DQS < 7 tras 3 passes → Fractal Swarm.
+
+## 6. Power Moves
 
 ```bash
-disekt-steal [app]        # Extraer design principles (NO código)
-disekt-ghost [feature]    # Re-implementar feature desde cero
-disekt-xray [app] --feature [name]  # Deep scan de una feature
-disekt-diff [target] v1 → v2        # Comparar versiones
-disekt-compete [mi-app] vs [rival]  # Análisis competitivo
+disekt-steal [app]                    # Extraer design principles (NO código)
+disekt-ghost [feature]                # Re-implementar feature desde cero
+disekt-xray [app] --feature [name]    # Deep scan de una feature
+disekt-diff [target] v1 → v2          # Comparar versiones
+disekt-compete [mi-app] vs [rival]    # Análisis competitivo
+disekt-harvest [t1] [t2] [t3]         # Batch extraction múltiples targets
 ```
 
-## 6. herramientas Rápidas
+## 7. Automation Scripts
+
+```bash
+# macOS app reconnaissance
+~/.gemini/antigravity/skills/reverse-engineer/scripts/disekt-recon.sh [app]
+
+# API surface probing
+~/.gemini/antigravity/skills/reverse-engineer/scripts/disekt-probe.sh [url]
+
+# Codebase autopsy
+~/.gemini/antigravity/skills/reverse-engineer/scripts/disekt-autopsy.sh [repo]
+```
+
+## 8. Herramientas Rápidas
 
 ```bash
 # macOS app inspection
@@ -83,7 +107,7 @@ git log --oneline -30
 git shortlog -sn
 ```
 
-## 7. Guardar en CORTEX
+## 9. Guardar en CORTEX
 
 ```bash
 cd ~/cortex && .venv/bin/python -m cortex.cli store \
@@ -99,5 +123,7 @@ cd ~/cortex && .venv/bin/python -m cortex.cli store \
 2. **Snapshot** ANTES de análisis profundo
 3. **[C1-C5]** en CADA hallazgo
 4. **Documentar** en tiempo real, nunca al final
-5. **Ghost ≠ Clone** — scope mínimo, siempre
-6. **El ghost DEBE superar al original** (MEJORAlo pass obligatorio)
+5. **3B Decision** obligatoria para cada hallazgo relevante
+6. **DQS ≥ 7** o iterar
+7. **Ghost ≠ Clone** — scope mínimo, siempre
+8. **El ghost DEBE superar al original** (MEJORAlo pass obligatorio)
