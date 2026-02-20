@@ -84,6 +84,25 @@ struct LeadingWingView: View {
                 }
                 .animation(DS.Spring.breath, value: breathPhase)
                 .transition(.opacity.combined(with: .scale(scale: 0.85)))
+                // 🧠 Ghost count badge — peripheral CORTEX awareness
+                .overlay(alignment: .bottomTrailing) {
+                    if viewModel.cortex.ghostCount > 0 {
+                        Text("\(viewModel.cortex.ghostCount)")
+                            .font(.system(size: 7, weight: .heavy, design: .rounded))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 2.5)
+                            .padding(.vertical, 0.5)
+                            .background(
+                                Capsule().fill(
+                                    viewModel.cortex.ghostCount > 5
+                                        ? Color.red.opacity(0.9)
+                                        : Color.purple.opacity(0.8)
+                                )
+                            )
+                            .offset(x: 5, y: 3)
+                            .transition(.scale.combined(with: .opacity))
+                    }
+                }
             }
             Spacer()
         }

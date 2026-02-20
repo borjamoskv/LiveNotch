@@ -360,6 +360,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(monitorItem)
         
         menu.addItem(.separator())
+        
+        // 🧠 CORTEX status
+        let cortexStatus = viewModel.cortex.connectionState == .connected
+            ? "🧠 CORTEX: \(viewModel.cortex.ghostCount) ghosts"
+            : "🧠 CORTEX: Offline"
+        let cortexItem = NSMenuItem(title: cortexStatus, action: #selector(toggleCortexPanel), keyEquivalent: "c")
+        cortexItem.keyEquivalentModifierMask = NSEvent.ModifierFlags([.command, .shift])
+        menu.addItem(cortexItem)
+        
+        menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit", action: #selector(quitApp), keyEquivalent: "q"))
         
         statusItem?.menu = menu
@@ -436,6 +446,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     HapticManager.shared.play(.toggle)
                 }
             }
+            // ⌘⇧C — CORTEX Panel
+            if event.modifierFlags.contains([.command, .shift]) && event.keyCode == 8 { // 'C' key code is 8
+                DispatchQueue.main.async {
+                    self.viewModel.isCortexVisible.toggle()
+                    if self.viewModel.isCortexVisible { self.viewModel.isExpanded = true }
+                    HapticManager.shared.play(.toggle)
+                }
+            }
+            // ⌘⇧G — CORTEX Ghosts (quick focus)
+            if event.modifierFlags.contains([.command, .shift]) && event.keyCode == 5 { // 'G' key code is 5
+                DispatchQueue.main.async {
+                    self.viewModel.isCortexVisible = true
+                    self.viewModel.isExpanded = true
+                    HapticManager.shared.play(.toggle)
+                }
+            }
         }
     }
     
@@ -444,6 +470,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // ════════════════════════════════════════
     
     @MainActor @objc func toggleNotch() { viewModel.isExpanded.toggle() }
+    
+    @MainActor @objc func toggleCortexPanel() {
+        viewModel.isCortexVisible.toggle()
+        if viewModel.isCortexVisible { viewModel.isExpanded = true }
+        HapticManager.shared.play(.toggle)
+    }
     
     /// Eye-tracking control toggle — stub for future implementation
     @MainActor func toggleEyeControl() {

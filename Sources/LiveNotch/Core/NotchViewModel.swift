@@ -37,6 +37,7 @@ class NotchViewModel: ObservableObject {
     @Published var bioLum = BioLumEngine()
     @Published var userMode = UserModeManager.shared
     @Published var scriptDrop = ScriptDropService.shared
+    @Published var cortex = CortexController()
     
     // ── States ──
     @Published var isExpanded = false
@@ -64,6 +65,7 @@ class NotchViewModel: ObservableObject {
     @Published var isCalendarVisible = false
     @Published var isModeSelectorVisible = false
     @Published var isScriptDropVisible = false
+    @Published var isCortexVisible = false  // 🧠 CORTEX Memory Panel
     @Published var isNotchHidden = false // Zen Mode: Hide notch completely
     @Published var isGodModeVisible = false // 🎛️ Geometry Controls
     @Published var isBlueYLM = false       // 🔵 Blue YInMn Theme
@@ -143,6 +145,11 @@ class NotchViewModel: ObservableObject {
             self?.showStatus(message, icon: icon)
         }
         
+        // 🧠 CORTEX ghost toast — notify when new ghosts appear
+        cortex.onNewGhosts = { [weak self] newCount in
+            self?.showStatus("🧠 +\(newCount) ghost\(newCount > 1 ? "s" : "")", icon: "eye.fill", duration: 3.0)
+        }
+        
         // Forward music objectWillChange to trigger view updates
         music.objectWillChange
             .receive(on: DispatchQueue.main)
@@ -194,6 +201,11 @@ class NotchViewModel: ObservableObject {
             .sink { [weak self] _ in self?.objectWillChange.send() }
             .store(in: &cancellables)
         
+        cortex.objectWillChange
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .store(in: &cancellables)
+        
         // Wire TipEngine callback
         tipEngine.onTipReady = { [weak self] tip in
             self?.showTip(tip)
@@ -218,6 +230,24 @@ class NotchViewModel: ObservableObject {
                 guard let self = self else { return }
                 self.bioLum.batteryLevel = Double(self.battery.batteryLevel) / 100.0
                 self.bioLum.isCharging = self.battery.isCharging
+            }
+            .store(in: &cancellables)
+        
+        // Feed CORTEX ghost urgency into BioLum
+        cortex.objectWillChange
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self = self else { return }
+                self.bioLum.cortexUrgency = self.cortex.ghostUrgency
+                
+                // Feed NervousSystem
+                NervousSystem.shared.cortexGhostCount = self.cortex.ghostCount
+                NervousSystem.shared.cortexConnected = (self.cortex.connectionState == .connected)
+                
+                // Auto-switch BioLum to cortexPulse when CORTEX panel is visible
+                if self.isCortexVisible && self.bioLum.activeMode != .cortexPulse {
+                    self.bioLum.activeMode = .cortexPulse
+                }
             }
             .store(in: &cancellables)
     }
@@ -564,6 +594,7 @@ class NotchViewModel: ObservableObject {
         isScriptDropVisible = false
         isClawBotVisible = false
         isEcosystemHubVisible = false
+        isCortexVisible = false
         // Reset mode if needed?
         // mode = .expanded 
     }

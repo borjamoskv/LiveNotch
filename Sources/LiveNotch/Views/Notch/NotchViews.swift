@@ -697,6 +697,9 @@ struct NotchView: View {
             } else if viewModel.isEcosystemHubVisible {
                 EcosystemHubView(viewModel: viewModel)
                     .transition(.opacity.combined(with: .offset(y: 6)))
+            } else if viewModel.isCortexVisible {
+                CortexPanelView(cortex: viewModel.cortex, viewModel: viewModel)
+                    .transition(.opacity.combined(with: .offset(y: 6)))
             } else if !viewModel.droppedFiles.isEmpty {
                 TrayPanelView(viewModel: viewModel)
                     .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: UnitPoint.top)))
@@ -716,6 +719,7 @@ struct NotchView: View {
         .animation(.spring(response: 0.3, dampingFraction: 0.85), value: viewModel.isCalendarVisible)
         .animation(.spring(response: 0.3, dampingFraction: 0.85), value: viewModel.isSettingsVisible)
         .animation(.spring(response: 0.3, dampingFraction: 0.85), value: viewModel.isEcosystemHubVisible)
+        .animation(.spring(response: 0.3, dampingFraction: 0.85), value: viewModel.isCortexVisible)
     }
     
     // ── Static formatters (avoid recreating on every render — perf fix) ──
@@ -746,7 +750,7 @@ struct NotchView: View {
     
     var isAnyPanelActive: Bool {
         viewModel.isExpanded || viewModel.isMirrorActive || viewModel.isClipboardVisible ||
-        viewModel.isBrainDumpVisible || viewModel.isVolumeMixerVisible || viewModel.isEyeControlVisible || viewModel.isQuickLaunchVisible || viewModel.isSwarmVisible || viewModel.isCalendarVisible || viewModel.isSettingsVisible || viewModel.isEcosystemHubVisible || !viewModel.droppedFiles.isEmpty
+        viewModel.isBrainDumpVisible || viewModel.isVolumeMixerVisible || viewModel.isEyeControlVisible || viewModel.isQuickLaunchVisible || viewModel.isSwarmVisible || viewModel.isCalendarVisible || viewModel.isSettingsVisible || viewModel.isEcosystemHubVisible || viewModel.isCortexVisible || !viewModel.droppedFiles.isEmpty
     }
     
     private func collapseAll() {
@@ -761,6 +765,7 @@ struct NotchView: View {
         viewModel.isCalendarVisible = false
         viewModel.isSettingsVisible = false
         viewModel.isEcosystemHubVisible = false
+        viewModel.isCortexVisible = false
         viewModel.showVolumeSlider = false
     }
     
@@ -1100,6 +1105,27 @@ struct NotchView: View {
                 HapticManager.shared.play(.toggle)
             }
             
+            // 🧠 CORTEX Memory
+            ZStack(alignment: .topTrailing) {
+                gridButton(
+                    icon: "brain.fill", label: "CORTEX",
+                    isActive: viewModel.isCortexVisible,
+                    tint: viewModel.cortex.connectionState == .connected ? .purple : nil
+                ) {
+                    viewModel.isCortexVisible = true
+                    HapticManager.shared.play(.toggle)
+                }
+                if viewModel.cortex.ghostCount > 0 {
+                    Text("\(viewModel.cortex.ghostCount)")
+                        .font(DS.Fonts.microBold)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 3)
+                        .padding(.vertical, 1)
+                        .background(Capsule().fill(viewModel.cortex.ghostCount > 5 ? Color.red : Color.purple))
+                        .offset(x: 4, y: -4)
+                }
+            }
+            
             // Calendar — premium schedule
             ZStack(alignment: .topTrailing) {
                 gridButton(
@@ -1214,6 +1240,7 @@ struct NotchView: View {
         if viewModel.isEyeControlVisible { return panelWidth }
         if viewModel.isQuickLaunchVisible { return panelWidth }
         if viewModel.isSwarmVisible { return panelWidth }
+        if viewModel.isCortexVisible { return panelWidth }
         if viewModel.isCalendarVisible { return panelWidth }
         if viewModel.isSettingsVisible { return panelWidth }
         if !viewModel.droppedFiles.isEmpty && viewModel.isExpanded { return trayWidth }
@@ -1229,6 +1256,7 @@ struct NotchView: View {
         if viewModel.isEyeControlVisible { return 260 }
         if viewModel.isQuickLaunchVisible { return 240 }
         if viewModel.isSwarmVisible { return 280 }
+        if viewModel.isCortexVisible { return 300 }
         if viewModel.isCalendarVisible { return 260 }
         if viewModel.isSettingsVisible { return 340 }
         if !viewModel.droppedFiles.isEmpty && viewModel.isExpanded { return 220 }

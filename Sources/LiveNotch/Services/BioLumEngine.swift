@@ -36,6 +36,9 @@ final class BioLumEngine: ObservableObject {
     @Published var activeAgentCount: Int = 0
     @Published var swarmWorkload: Double = 0        // 0..1
     
+    // ─── CORTEX Integration ───
+    @Published var cortexUrgency: Double = 0         // 0..1 (ghost count urgency)
+    
     private var cancellables = Set<AnyCancellable>()
     private var animationTimer: AnyCancellable?
     
@@ -54,6 +57,7 @@ final class BioLumEngine: ObservableObject {
         case energyField         // 8. Battery → electric field intensity
         case circadian           // 9. Time-of-day natural light temperature
         case sentient            // 10. ALL inputs combined — the notch "feels" everything
+        case cortexPulse         // 11. CORTEX memory pressure — ghost count drives urgency
         
         var id: String { rawValue }
         
@@ -69,6 +73,7 @@ final class BioLumEngine: ObservableObject {
             case .energyField:   return "Energy Field"
             case .circadian:     return "Circadian"
             case .sentient:      return "Sentient"
+            case .cortexPulse:   return "CORTEX Pulse"
             }
         }
         
@@ -84,6 +89,7 @@ final class BioLumEngine: ObservableObject {
             case .energyField:   return "bolt.fill"
             case .circadian:     return "sun.horizon.fill"
             case .sentient:      return "brain.head.profile.fill"
+            case .cortexPulse:   return "brain.fill"
             }
         }
         
@@ -100,6 +106,7 @@ final class BioLumEngine: ObservableObject {
             case .energyField:   return .optimizer
             case .circadian:     return .designer
             case .sentient:      return .coder
+            case .cortexPulse:   return .researcher
             }
         }
     }
@@ -177,6 +184,8 @@ final class BioLumEngine: ObservableObject {
             computeCircadian()
         case .sentient:
             computeSentient()
+        case .cortexPulse:
+            computeCortexPulse()
         }
     }
     
@@ -363,13 +372,16 @@ final class BioLumEngine: ObservableObject {
         let ram = ramPressure / 100.0
         let agents = swarmWorkload
         let battery = batteryLevel
+        let cortex = cortexUrgency
         
-        // Composite "arousal" level
-        let arousal = (cpu * 0.35 + ram * 0.25 + agents * 0.2 + (1.0 - battery) * 0.2)
+        // Composite "arousal" level — CORTEX ghosts contribute to urgency
+        let arousal = (cpu * 0.3 + ram * 0.2 + agents * 0.15 + (1.0 - battery) * 0.15 + cortex * 0.2)
         
         // Hue drifts based on dominant stressor
         let baseHue: Double
-        if cpu > ram && cpu > agents {
+        if cortex > 0.6 {
+            baseHue = 0.8  // CORTEX stressed → purple (memory pressure)
+        } else if cpu > ram && cpu > agents {
             baseHue = 0.05 // CPU dominant → warm/red
         } else if ram > agents {
             baseHue = 0.7  // RAM dominant → purple
@@ -389,6 +401,31 @@ final class BioLumEngine: ObservableObject {
         secondaryColor = Color(hue: max(0, finalHue + 0.15), saturation: 0.6, brightness: 0.7)
         glowIntensity = 0.05 + (arousal * 0.25) + (sin(patternPhase * .pi * 2) * arousal * 0.08)
         pulseRate = 0.2 + (arousal * 1.3)
+    }
+    
+    // 11. CORTEX PULSE — Ghost memory pressure visualization
+    private func computeCortexPulse() {
+        let urgency = cortexUrgency
+        
+        // Neural pulse — asymmetric waveform like synaptic firing
+        let neural = sin(patternPhase * .pi * 2) * 0.5 + 0.5
+        let spike = max(0, sin(patternPhase * .pi * 6) * 2 - 1.5)  // Sharp spikes
+        let pulse = neural * 0.7 + spike * 0.3
+        
+        // Color shift: calm cyan → teal → purple → magenta (urgent)
+        let hue: Double
+        if urgency < 0.3 {
+            hue = 0.55  // Calm cyan — no ghosts
+        } else if urgency < 0.6 {
+            hue = 0.55 - ((urgency - 0.3) / 0.3) * 0.15  // → teal
+        } else {
+            hue = 0.4 + ((urgency - 0.6) / 0.4) * 0.45   // → purple → magenta
+        }
+        
+        glowColor = Color(hue: max(0, min(1, hue)), saturation: 0.6 + (urgency * 0.3), brightness: 0.85)
+        secondaryColor = Color(hue: max(0, min(1, hue + 0.1)), saturation: 0.5, brightness: 0.7)
+        glowIntensity = 0.06 + (urgency * 0.2) + (pulse * urgency * 0.12)
+        pulseRate = 0.3 + (urgency * 1.0)  // Pulses faster with more ghosts
     }
     
     // ═══════════════════════════════════════════════════

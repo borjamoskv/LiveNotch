@@ -111,6 +111,14 @@ extension NervousSystem {
         // Default fallback
         candidates.append((.active, 1))
         
+        // 🧠 CORTEX ghost pressure: weight 45 (> stressed, <creative)
+        if cortexGhostCount > 10 {
+            candidates.append((.stressed, 45))
+        } else if cortexGhostCount > 5 {
+            // Moderate ghost pressure — increases anxiety but doesn't dominate
+            candidates.append((.active, 25))
+        }
+        
         // Winner takes all
         let newMood = candidates.max(by: { $0.1 < $1.1 })?.0 ?? .active
         
