@@ -201,7 +201,7 @@ final class NotchIntelligence: ObservableObject {
             streamOnMain(dream, onStream: onStream)
             
         case "cortex":
-            streamOnMain("🧠 **Cortex Status:**\n- Entries: \(memory.conversationLength)/\(memory.maxCapacity)\n- Path: `~/.antigravity/cortex.json`\n- Persistence: ACTIVE", onStream: onStream)
+            streamOnMain("🧠 **Cortex Status:**\n- Entries: \(memory.conversationLength)/\(memory.maxCapacity)\n- Persistence: CORTEX v4 REST API (/v1/facts)\n- Status: ACTIVE", onStream: onStream)
             
         case "clear":
             memory.clear()

@@ -8,32 +8,10 @@ private let nervousLog = NotchLog.make("NervousSystem")
 // ═══════════════════════════════════════════════════
 // MARK: - 🧠 Nervous System — The Soul of the Notch
 // ═══════════════════════════════════════════════════
-//
-// The notch is a living organism. It breathes, shifts color,
-// and responds to context without demanding attention.
-// This engine determines the emotional state of the notch.
-//
-// 🦎 App Chameleon: The notch becomes the app. Color, icon,
-// and action adapt to whatever you're using right now.
+// ═══════════════════════════════════════════════════
 
 final class NervousSystem: ObservableObject {
     static let shared = NervousSystem()
-    
-    // ── Mood States ──
-    enum Mood: String, CaseIterable {
-        case idle       // ⚪ Nothing happening — barely visible
-        case focus      // 🟢 Deep work — same app >3min, low distractions
-        case active     // 🔵 Normal work — switching apps, moderate activity
-        case stressed   // 🔴 System under load — high CPU, many switches
-        case music      // 🎵 Music playing — album color dominates
-        case meeting    // 🟡 Video call active — Zoom/Meet/Teams/FaceTime
-        case creative   // 🟣 Creative apps — Photoshop, Ableton, etc.
-        case coding     // 🔵 Coding apps — generic coding state
-        case dreaming   // 🟣 Late night / inactive state
-    }
-    
-    // ── Smart Actions ──
-    // SmartAction enum moved to AppProfiles.swift
     
     // ── Published State ──
     @Published var currentMood: Mood = .idle
@@ -69,33 +47,6 @@ final class NervousSystem: ObservableObject {
     // 👁️ Eye Gesture Stream
     @Published var lastDetectedGesture: FaceGesture = .none
     
-    // ── AI Context Personas ──
-    private let appContexts: [String: String] = [
-        // Coding
-        "com.microsoft.VSCode": "You are an expert software engineer. Focus on clean, performant code.",
-        "com.todesktop.230510fqmkbjh6g": "You are an expert software engineer (Cursor). Suggest modern refactors.",
-        "com.cursor.Cursor": "You are an expert software engineer (Cursor). Suggest modern refactors.",
-        "com.apple.dt.Xcode": "You are an iOS/macOS expert. Focus on SwiftUI, Combine, and system frameworks.",
-        "com.google.antigravity": "You are Antigravity, an advanced AI coding assistant. Modify the codebase directly.",
-        
-        // Creative
-        "com.hnc.Discord": "You are a creative muse. Help generate Midjourney prompts and Suno lyrics.",
-        "com.adobe.Photoshop": "You are a digital artist. Suggest composition, color theory, and techniques.",
-        "com.ableton.live": "You are a music producer. Suggest chord progressions and sound design.",
-        "com.image-line.flstudio": "You are a beatmaker. Suggest drum patterns and mixing tips.",
-        
-        // Research/Writing
-        "com.apple.Safari": "You are a researcher. Summarize content and fact-check information.",
-        "com.google.Chrome": "You are a researcher. Summarize content and fact-check information.",
-        "ai.perplexity.mac": "You are a deep researcher. Cross-reference sources and find specific data.",
-        "com.apple.iWork.Pages": "You are a professional editor. Improve grammar, tone, and clarity.",
-        "md.obsidian": "You are a knowledge manager. Help organize thoughts and find connections.",
-        "notion.id": "You are a productivity expert. Help structure project plans and databases."
-    ]
-    
-    var currentAIContext: String {
-        return appContexts[activeAppBundleID] ?? "You are Naroa, a sophisticated AI agent integrated into the macOS notch. You are helpful, concise, and aware of the user's system context."
-    }
 
     // ── Tracking ──
     // masterHeartbeat removed — now managed by SmartPolling coordinator
@@ -109,16 +60,6 @@ final class NervousSystem: ObservableObject {
     var sessionStartTime = Date()
     private var cancellables = Set<AnyCancellable>()
     private var lastActiveBundle: String = ""
-    
-    // Meeting apps
-    private let meetingBundleIDs = [
-        "us.zoom.xos",
-        "com.apple.FaceTime",
-        "com.microsoft.teams",
-        "com.microsoft.teams2",
-        "com.tinyspeck.slackmacgap",
-        "com.cisco.webexmeetingsapp"
-    ]
     
     private init() {
         #if DEBUG
@@ -222,16 +163,17 @@ final class NervousSystem: ObservableObject {
     
     
     /// Compute the final ambient glow color based on all emotional inputs
-    
-    // ════════════════════════════════════════
-    // MARK: - Meeting Detection
-    // ════════════════════════════════════════
-    
-    private func startMeetingDetection() {
-        // Meeting detection is handled by pulse()
-    }
+
     
     private func checkForMeetings() {
+        let meetingBundleIDs = [
+            "us.zoom.xos",
+            "com.apple.FaceTime",
+            "com.microsoft.teams",
+            "com.microsoft.teams2",
+            "com.tinyspeck.slackmacgap",
+            "com.cisco.webexmeetingsapp"
+        ]
         let running = NSWorkspace.shared.runningApplications
         let meetingFound = running.contains { app in
             guard let bundleID = app.bundleIdentifier else { return false }
@@ -315,10 +257,7 @@ final class NervousSystem: ObservableObject {
         extractWindowTitle(pid: app.processIdentifier)
     }
     
-    // Window title extraction moved to NervousSystem+Accessibility.swift
-    
-    // Color extraction moved to NervousSystem+Accessibility.swift
-    
+
     
     // ════════════════════════════════════════
     // MARK: - External State (set by ViewModel)
@@ -338,8 +277,7 @@ final class NervousSystem: ObservableObject {
     @Published var gestureEyeFaceDetected: Bool = false
     @Published var gestureEyeLastGesture: FaceGesture = .none
     
-    // Gesture handling moved to NervousSystem+Gestures.swift
-    
+
     /// Format meeting duration as "12m" or "1h 23m"
     var meetingDurationFormatted: String {
         let mins = Int(meetingDuration) / 60
