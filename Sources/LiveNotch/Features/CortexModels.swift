@@ -9,21 +9,22 @@ import Foundation
 // MARK: - Fact
 
 struct CortexFact: Identifiable, Codable, Hashable {
-    let id: String
+    let id: Int
     let project: String
-    let type: String
+    let fact_type: String
     let content: String
     let created_at: String?
     let updated_at: String?
     let status: String?
     let tags: [String]?
     
-    var isGhost: Bool { type == "ghost" }
-    var isDecision: Bool { type == "decision" }
-    var isError: Bool { type == "error" }
+    var type: String { fact_type }
+    var isGhost: Bool { fact_type == "ghost" }
+    var isDecision: Bool { fact_type == "decision" }
+    var isError: Bool { fact_type == "error" }
     
     var typeIcon: String {
-        switch type {
+        switch fact_type {
         case "ghost": return "eye.fill"
         case "decision": return "checkmark.seal.fill"
         case "error": return "exclamationmark.triangle.fill"
@@ -36,7 +37,7 @@ struct CortexFact: Identifiable, Codable, Hashable {
     }
     
     var typeColor: String {
-        switch type {
+        switch fact_type {
         case "ghost": return "purple"
         case "decision": return "green"
         case "error": return "red"
@@ -70,9 +71,10 @@ struct CortexSearchResult: Identifiable, Codable {
     var id: String { content.prefix(32) + String(score ?? 0) }
     let content: String
     let project: String?
-    let type: String?
+    let fact_type: String?
     let score: Double?
-    let fact_id: String?
+    let fact_id: Int?
+    var type: String? { fact_type }
 }
 
 struct CortexSearchResponse: Codable {
@@ -86,15 +88,15 @@ struct CortexSearchResponse: Codable {
 struct CortexStoreRequest: Codable {
     let project: String
     let content: String
-    let type: String
+    let fact_type: String
     let tags: [String]?
 }
 
 // MARK: - Store Response
 
 struct CortexStoreResponse: Codable {
-    let id: String?
-    let status: String?
+    let fact_id: Int?
+    let project: String?
     let message: String?
 }
 

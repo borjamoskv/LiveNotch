@@ -140,7 +140,7 @@ final class CortexController: ObservableObject {
     func fetchGhosts() async {
         guard connectionState == .connected else { return }
         
-        guard let url = URL(string: "\(baseURL)/facts?type=ghost&limit=50") else { return }
+        guard let url = URL(string: "\(baseURL)/v1/projects/live-notch/facts?limit=100") else { return }
         
         do {
             var request = URLRequest(url: url)
@@ -154,8 +154,8 @@ final class CortexController: ObservableObject {
                 return
             }
             
-            let factsResponse = try JSONDecoder().decode(CortexFactsResponse.self, from: data)
-            ghosts = factsResponse.facts ?? []
+            let allFacts = try JSONDecoder().decode([CortexFact].self, from: data)
+            ghosts = allFacts.filter { $0.fact_type == "ghost" }
             ghostCount = ghosts.count
             
             // Detect NEW ghosts → fire toast callback
@@ -185,7 +185,7 @@ final class CortexController: ObservableObject {
         isSearching = true
         searchQuery = query
         
-        guard let url = URL(string: "\(baseURL)/search") else {
+        guard let url = URL(string: "\(baseURL)/v1/search") else {
             isSearching = false
             return
         }
@@ -208,8 +208,8 @@ final class CortexController: ObservableObject {
                 return
             }
             
-            let searchResponse = try JSONDecoder().decode(CortexSearchResponse.self, from: data)
-            searchResults = searchResponse.results ?? []
+            let searchResponse = try JSONDecoder().decode([CortexSearchResult].self, from: data)
+            searchResults = searchResponse
             isSearching = false
             
             cortexLog.debug("Search '\(query)': \(searchResults.count) results")
@@ -229,7 +229,7 @@ final class CortexController: ObservableObject {
         
         isStoring = true
         
-        guard let url = URL(string: "\(baseURL)/facts") else {
+        guard let url = URL(string: "\(baseURL)/v1/facts") else {
             isStoring = false
             return false
         }
@@ -240,7 +240,7 @@ final class CortexController: ObservableObject {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             addAuthHeaders(&request)
             
-            let body = CortexStoreRequest(project: project, content: content, type: type, tags: nil)
+            let body = CortexStoreRequest(project: project, content: content, fact_type: type, tags: nil)
             request.httpBody = try JSONEncoder().encode(body)
             
             let (data, response) = try await URLSession.shared.data(for: request)
@@ -294,7 +294,7 @@ final class CortexController: ObservableObject {
     func resolveGhost(_ ghost: CortexFact) async -> Bool {
         guard connectionState == .connected else { return false }
         
-        guard let url = URL(string: "\(baseURL)/facts/\(ghost.id)") else { return false }
+        guard let url = URL(string: "\(baseURL)/v1/facts/\(ghost.id)") else { return false }
         
         do {
             var request = URLRequest(url: url)

@@ -45,6 +45,8 @@ final class NervousSystem: ObservableObject {
     @Published var isMeetingActive: Bool = false
     @Published var meetingDuration: TimeInterval = 0
     @Published var isThinkingAI: Bool = false
+    @Published var cortexGhostCount: Int = 0
+    @Published var cortexConnected: Bool = false
     
     // 🦎 App Chameleon State
     @Published var chameleonEnabled: Bool = NotchPersistence.shared.bool(.chameleonEnabled, default: true) {
