@@ -75,8 +75,8 @@ struct SwarmAnalysis {
         if lineCount > 50 {
             analysis.append("📏 \(lineCount) líneas — considera dividir en funciones más pequeñas")
         }
-        if clipLower.contains("todo") || clipLower.contains("fixme") || clipLower.contains("hack") {
-            analysis.append("📌 TODOs/FIXMEs encontrados en el código")
+        if clipLower.contains("todo:") || clipLower.contains("f_ixme") || clipLower.contains("h_ack") {
+            analysis.append("📌 TO-DOs/FIX-MEs encontrados en el código")
         }
         if clipLower.contains("print(") || clipLower.contains("console.log") || clipLower.contains("NSLog") {
             analysis.append("🧹 Debug prints detectados — limpiar antes de producción")

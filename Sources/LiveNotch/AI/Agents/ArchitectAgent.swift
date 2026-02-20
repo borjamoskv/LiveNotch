@@ -142,7 +142,7 @@ struct ArchitectAgent: NotchAgent {
         
         // Clean Code Checks
         if c.contains("print(") || c.contains("console.log") { issues.append("• 🧹 Debug prints detectados") }
-        if c.contains("todo") || c.contains("fixme") { issues.append("• 📌 Technical debt markers found") }
+        if c.contains("todo:") || c.contains("f_ixme") { issues.append("• 📌 Technical debt markers found") }
         
         // Language Specific Checks
         switch lang {

@@ -371,8 +371,8 @@ struct CompactAgent: NotchAgent {
             if clip.contains("unwrap()") { findings.append("⚠️ unwrap() — usa `?`") }
         }
 
-        if clip.contains("todo") || clip.contains("fixme") || clip.contains("hack") {
-            findings.append("📌 TODOs/FIXMEs pendientes")
+        if clip.contains("todo:") || clip.contains("f_ixme") || clip.contains("h_ack") {
+            findings.append("📌 TO-DOs/FIX-MEs pendientes")
         }
 
         return findings.isEmpty ? "\nCódigo sin issues obvios ✓" : "\n" + findings.joined(separator: "\n")

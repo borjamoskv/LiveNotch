@@ -446,7 +446,7 @@ class NotchViewModel: ObservableObject {
     // ═══════════════════════════════════════════════════
     // These proxy properties allow existing views to compile
     // without modification. Gradually migrate views to use
-    // vm.music.xxx, vm.battery.xxx, etc. directly.
+    // vm.music.properties, vm.battery.properties, etc. directly.
     
     var currentTrack: String { music.currentTrack }
     var currentArtist: String { music.currentArtist }

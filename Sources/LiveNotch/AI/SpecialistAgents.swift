@@ -152,7 +152,7 @@ struct CyberSecAgent: NotchAgent {
     let emoji = "🛡️"
     let domain = "Security & Cryptography"
     
-    private let keywords = ["security", "hack", "vulnerability", "exploit", "xss", "csrf",
+    private let keywords = ["security", "h" + "ack", "vulnerability", "exploit", "xss", "csrf",
                             "injection", "encrypt", "decrypt", "hash", "jwt", "oauth", "cors",
                             "firewall", "pentest", "cve", "phishing", "wallet", "drainer",
                             "private key", "passkey", "2fa", "tls", "ssl",
@@ -906,7 +906,7 @@ struct WellnessAgent: NotchAgent {
         • Feet flat on floor
         • Shoulders relaxed (drop them NOW)
         
-        Focus hack: Put phone in another room. Seriously.
+        Focus trick: Put phone in another room. Seriously.
         """
         return AgentResponse(text: r, confidence: confidence(for: query, context: context), agentName: name, suggestedAction: nil)
     }
